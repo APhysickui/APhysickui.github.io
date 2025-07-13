@@ -16,7 +16,7 @@ url                      : "https://APhysickui.github.io"
 baseurl                  : ""
 # 首页展示图片（如有请放在 images 文件夹下）【可选】
 og_image                 : "images/wanted.png"
-repository               : "你的github用户名/你的仓库名"
+repository               : "APhysickui.github.io" # GitHub 仓库名
 teaser                   : "" # 首页预览图【可选】
 breadcrumbs              : false
 words_per_minute         : 160

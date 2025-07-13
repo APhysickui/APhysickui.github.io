@@ -8,9 +8,10 @@ redirect_from:
   - /about.html
 ---
 
-I'm a third year undergraduate student from [School of EECS](https://eecs.pku.edu.cn/), [Peking University](https://www.pku.edu.cn/), currently enrolled in the 22nd Turing Class. At the same time, I studied for a double degree in economics at the National School of Development.
+I’m a first-year undergraduate student in the Department of Physics at Peking University. I’m still exploring my academic interests, but currently I’m curious about condensed matter physics and astrophysics.
 
-My research interests and skills are concentrated in the fields of ml, nlp, llms, etc. I am currently studying in Mr. Yizhou Wang's program.  <!--My research interest includes computer vision, computer graphics, machine learning, and computational photography.-->
+I’m just getting started, and there’s still a long way to go — just an ordinary student trying to find my path. I enjoy watching movies and learning new things in computer science in my spare time.
+  <!--My research interest includes computer vision, computer graphics, machine learning, and computational photography.-->
 
 <!--I am very fortunate to be advised by [Prof. XXX](https://www.XXX.com/) of XXX Lab from [School of Computer Science](https://cs.pku.edu.cn/), Peking University. I was advised by [Prof. XX](https://XXX.pku.edu.cn/) from [School of Computer Science](https://cs.pku.edu.cn/), Peking University.-->
 
