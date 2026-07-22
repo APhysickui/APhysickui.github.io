@@ -1,0 +1,116 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage[margin=1.35cm]{geometry}
+\usepackage{fontspec}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{titlesec}
+
+\setmainfont[
+  Path=/Users/Zhuanz/Library/Fonts/,
+  BoldFont=NotoSansCJKsc-Bold.otf,
+  ItalicFont=NotoSansCJKsc-Regular.otf
+]{NotoSansCJKsc-Regular.otf}
+\definecolor{linkblue}{HTML}{175FA5}
+\hypersetup{
+  colorlinks=true,
+  urlcolor=linkblue,
+  linkcolor=linkblue,
+  pdfauthor={Zhenkui Zhou},
+  pdftitle={Zhenkui Zhou - Curriculum Vitae}
+}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2pt}
+\setlist[itemize]{leftmargin=1.35em,itemsep=1pt,topsep=3pt,parsep=0pt,partopsep=0pt}
+\titleformat{\section}{\large\bfseries}{}{0pt}{}[\vspace{2pt}\titlerule]
+\titlespacing*{\section}{0pt}{8pt}{4pt}
+
+\newcommand{\cventry}[2]{%
+  \begin{tabularx}{\textwidth}{@{}Xr@{}}
+    \textbf{#1} & #2
+  \end{tabularx}
+}
+
+\begin{document}
+\fontsize{9.5}{12}\selectfont
+\XeTeXlinebreaklocale "zh"
+\XeTeXlinebreakskip = 0pt plus 1pt
+\emergencystretch=3em
+\sloppy
+
+\begin{center}
+  {\LARGE\bfseries 周朕葵 \textbar\ Zhenkui Zhou}\\[4pt]
+  北京，中国
+  \enspace\textbar\enspace
+  \href{tel:+8618801060127}{18801060127}
+  \enspace\textbar\enspace
+  \href{mailto:zzk1685419208@stu.pku.edu.cn}{zzk1685419208@stu.pku.edu.cn}
+  \enspace\textbar\enspace
+  \href{https://github.com/APhysickui}{GitHub: APhysickui}
+\end{center}
+
+\section*{教育经历 \textbar\ Education}
+
+\cventry{北京大学，物理学院}{2024.09--2028.06（预计）}
+物理学理学学士
+\begin{itemize}
+  \item 均分：\textbf{86.7/100}；GPA：\textbf{3.667/4.000}。
+  \item 相关课程：概率统计（98）、理论力学（95）、近代物理（91）、光学（90）、数学物理方法（下）（90）。
+\end{itemize}
+
+\section*{科研经历 \textbar\ Research Experience}
+
+\cventry{机器学习辅助的拓扑量子材料霍尔响应筛选研究}{2026.04--Present}
+独立本科生科研训练项目；指导教师：冯济，北京大学物理学院
+\begin{itemize}
+  \item 围绕量子反常霍尔、热霍尔等输运响应，研究如何结合材料数据库与机器学习方法辅助筛选潜在拓扑量子材料。
+  \item 项目当前处于文献调研与方法准备阶段：研读拓扑能带、Berry 曲率和霍尔响应相关工作，梳理可用材料数据库，并学习 DFT 数据提取与材料描述符构建方法。
+\end{itemize}
+
+\section*{项目经历 \textbar\ Projects}
+
+\cventry{\href{https://github.com/APhysickui/QPDS}{QPDS：德州扑克量化决策系统}}{Python, Flask}
+\begin{itemize}
+  \item 独立开发模块化决策系统，实现对手范围解析、Monte Carlo 权益模拟与小范围精确枚举。
+  \item 综合胜率、底池赔率、有效筹码底池比（SPR）、位置、牌面结构和对手行为，输出行动建议、期望值与置信度；使用 Flask REST API 将核心评估逻辑与 Web 层分离。
+\end{itemize}
+
+\cventry{\href{https://github.com/APhysickui/Modern_Art}{Modern Art：桌游数字助手}}{Python, Streamlit}
+\begin{itemize}
+  \item 使用 Streamlit 与独立游戏管理模块实现 3--5 人、4 轮拍卖状态管理，处理“第五幅画”终止、跨轮艺术家价值累计、回合结算与总资产排名。
+  \item 加入中英双语界面、交易日志、JSON 存档与读档、撤销操作和艺术家价值历史图表。
+\end{itemize}
+
+\cventry{“攀爬磁铁”实验与初步建模}{三人小组项目；Tracker, Origin, MATLAB}
+\begin{itemize}
+  \item 参与旋转铁磁杆实验与视频采集；使用 Tracker 提取攀爬轨迹，并在 Origin 中拟合、可视化位移与转速数据。
+  \item 参与基于摩擦、重力、磁力与离心效应的简化受力分析，使用 MATLAB 绘制三维装置仿真与受力图，并记录模型在摩擦和接触非对称方面的限制。
+\end{itemize}
+
+\cventry{个人博客部署与迁移}{Docker Compose, Nginx, GitHub Actions, Linux}
+\begin{itemize}
+  \item 在 Linux 服务器上以 Docker Compose 部署 MX-Space、MongoDB 与 Redis，配置 Nginx 反向代理；通过 GitHub Actions 构建 Shiro 前端并经 SSH/PM2 发布，同时撰写完整部署教程。
+  \item 服务器与旧域名到期后，将个人主页、文章和项目记录迁移至 GitHub Pages。
+\end{itemize}
+
+\section*{荣誉与奖项 \textbar\ Honors \& Awards}
+
+\begin{itemize}
+  \item \textbf{北京大学学习优秀奖} \hfill 2024--2025 学年
+  \item \textbf{中国大学生物理学术竞赛（CUPT）学院级优胜奖} \hfill 2025.06
+  \item \textbf{全国中学生物理竞赛决赛（CPhO）银牌} \hfill 2023.10
+\end{itemize}
+
+\section*{校园经历与技能 \textbar\ Activities \& Skills}
+
+\begin{itemize}
+  \item \textbf{班长，北京大学物理学院} \hfill 2024.09--Present
+  \item \textbf{编程与数据分析：}Python（Flask、Streamlit、NumPy、Pandas、Matplotlib、pytest），MATLAB，C++（基础）。
+  \item \textbf{开发与运维：}Git，Docker Compose，Linux，Nginx，GitHub Actions。
+\end{itemize}
+
+\end{document}
