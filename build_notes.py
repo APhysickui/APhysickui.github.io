@@ -116,16 +116,36 @@ def render_markdown(text):
             s = s[:-1]
         return [c.strip() for c in s.split("|")]
 
+    def strip_indent(s, amount):
+        """Remove up to `amount` leading spaces (for dedenting code content)."""
+        j = 0
+        while j < amount and j < len(s) and s[j] == " ":
+            j += 1
+        return s[j:]
+
+    # Block markers are matched after optional leading whitespace, so notes
+    # authored as one big nested list (everything indented under a top-level
+    # bullet — common when pasting from blog editors) still parse correctly.
+    fence_re = re.compile(r"^(\s*)```(.*)$")
+    heading_re = re.compile(r"^\s*(#{1,6})\s+(.*)")
+    ul_re = re.compile(r"^\s*[-*+]\s+(.*)")
+    ol_re = re.compile(r"^\s*\d+\.\s+(.*)")
+    hr_re = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$")
+    quote_re = re.compile(r"^\s*>\s?(.*)")
+    marker_re = re.compile(r"^\s*(#{1,6}\s|[-*+]\s|\d+\.\s|>|```|(-{3,}|\*{3,}|_{3,})\s*$)")
+
     while i < n:
         line = lines[i]
 
-        # fenced code block
-        if line.startswith("```"):
+        # fenced code block (indent-tolerant; content dedented by fence indent)
+        m = fence_re.match(line)
+        if m:
             close_list(list_stack)
+            indent = len(m.group(1))
             i += 1
             buf = []
-            while i < n and not lines[i].startswith("```"):
-                buf.append(html.escape(lines[i]))
+            while i < n and not fence_re.match(lines[i]):
+                buf.append(html.escape(strip_indent(lines[i], indent)))
                 i += 1
             i += 1  # skip closing fence
             out.append("<pre><code>%s</code></pre>" % "\n".join(buf))
@@ -155,8 +175,15 @@ def render_markdown(text):
             i += 1
             continue
 
+        # horizontal rule (before lists: '***'/'---' would also match a bullet)
+        if hr_re.match(line):
+            close_list(list_stack)
+            out.append("<hr>")
+            i += 1
+            continue
+
         # heading
-        m = re.match(r"(#{1,6})\s+(.*)", line)
+        m = heading_re.match(line)
         if m:
             close_list(list_stack)
             level = len(m.group(1))
@@ -165,17 +192,17 @@ def render_markdown(text):
             continue
 
         # blockquote
-        if line.startswith(">"):
+        if quote_re.match(line):
             close_list(list_stack)
             buf = []
-            while i < n and lines[i].startswith(">"):
-                buf.append(inline(lines[i].lstrip(">").strip()))
+            while i < n and quote_re.match(lines[i]):
+                buf.append(inline(quote_re.match(lines[i]).group(1).strip()))
                 i += 1
             out.append("<blockquote>%s</blockquote>" % "<br>".join(buf))
             continue
 
         # unordered list
-        m = re.match(r"[-*+]\s+(.*)", line)
+        m = ul_re.match(line)
         if m:
             if not list_stack or list_stack[-1] != "ul":
                 close_list(list_stack)
@@ -186,7 +213,7 @@ def render_markdown(text):
             continue
 
         # ordered list
-        m = re.match(r"\d+\.\s+(.*)", line)
+        m = ol_re.match(line)
         if m:
             if not list_stack or list_stack[-1] != "ol":
                 close_list(list_stack)
@@ -196,19 +223,12 @@ def render_markdown(text):
             i += 1
             continue
 
-        # horizontal rule
-        if re.match(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$", line):
-            close_list(list_stack)
-            out.append("<hr>")
-            i += 1
-            continue
-
         # paragraph (gather consecutive non-blank, non-special lines)
         close_list(list_stack)
         buf = [line]
         i += 1
-        while i < n and lines[i].strip() != "" and "|" not in lines[i] and not re.match(
-                r"(#{1,6}\s|[-*+]\s|\d+\.\s|>|```|-{3,}\s*$)", lines[i]):
+        while i < n and lines[i].strip() != "" and "|" not in lines[i] \
+                and not marker_re.match(lines[i]):
             buf.append(lines[i])
             i += 1
         out.append("<p>%s</p>" % inline(" ".join(buf).strip()))

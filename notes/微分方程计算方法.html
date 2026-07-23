@@ -342,8 +342,10 @@ k_4 = f(t_i + h, \ y_{\text{end}}) = f\left(t_i + h, \ y_i + h f + \frac{h^2}{2}
 \begin{aligned} P \text{ 的系数和} &= 2 \left( \frac{h^2}{8} P \right) + 2 \left( \frac{h^2}{8} P \right) + \frac{h^2}{2} P \\ \space \\ &= \frac{h^2}{4} P + \frac{h^2}{4} P + \frac{h^2}{2} P \\ \space \\&= h^2 P \end{aligned}$$</p>
 <ul>
 <li>对于带有交叉项 $f_y (f_t + f_y f)$ 的部分（我们简记为 $Q$）：</li>
+<li>$2k_2$ 里面没有这一项（系数为 0）；</li>
+<li>$2k_3$ 里面含有这一项，系数为 $2 \times \frac{h^2}{8} \times 2 = \frac{h^2}{2}$；</li>
+<li>$k_4$ 里面含有这一项，系数为 $\frac{h^2}{2}$。</li>
 </ul>
-<p>- $2k_2$ 里面没有这一项（系数为 0）；   - $2k_3$ 里面含有这一项，系数为 $2 \times \frac{h^2}{8} \times 2 = \frac{h^2}{2}$；   - $k_4$ 里面含有这一项，系数为 $\frac{h^2}{2}$。</p>
 <p>$$
 \begin{aligned} Q \text{ 的系数和} &= 0 + \frac{h^2}{2} Q + \frac{h^2}{2} Q \\ \space \\ &= h^2 Q \end{aligned}$$</p>
 <p>把 $P$ 和 $Q$ 合并：  $$
@@ -840,7 +842,9 @@ for i in range(len(t_vals)-1):
 <ol>
 <li><strong>第一步（盲猜）</strong>：我们先闭着眼睛对 $y_{i+1}$ 猜一个初始值，记为 $y^{(0)}$。</li>
 </ol>
-<p>- <em>注：怎么猜？最常用的办法是用最简单的显式欧拉法跨一步： $y^{(0)} = y_i + h f(t_i, y_i)$，这个粗糙的值作为我们的起点。</em></p>
+<ul>
+<li><em>注：怎么猜？最常用的办法是用最简单的显式欧拉法跨一步： $y^{(0)} = y_i + h f(t_i, y_i)$，这个粗糙的值作为我们的起点。</em></li>
+</ul>
 <ol>
 <li><strong>第二步（作切线）</strong>：我们画出函数 $F(x)$ 的曲线，找到曲线在 $x = y^{(0)}$ 处的点 $(y^{(0)}, F(y^{(0)}))$。我们在这个点上作一条<strong>切线</strong>。</li>
 <li><strong>第三步（切线求交点）</strong>：这条切线的斜率就是导数 $F'(y^{(0)})$。切线与 $x$ 轴（即 $F(x) = 0$ 处）相交的点，就会比我们盲猜的 $y^{(0)}$ <strong>更接近</strong>真正的根。我们将这个交点记为下一次的猜测值 $y^{(1)}$。</li>

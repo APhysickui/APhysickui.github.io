@@ -33,121 +33,512 @@
 </ul>
 <p>至于目的，~~为了 装X！~~</p>
 <p>其实现在想来当时为啥看不上github.io，非要搞这个😵‍💫 甚是麻烦，借助gemini大人也陆陆续续也干了1周多是说（可能现在有codex会方便些？）</p>
-<p><em>   <strong>个人配置</strong>：MacBook Pro + 1Panel 服务器 （阿里云买的轻量级 <strong>2</strong>vCPU/<strong>1</strong>GiB）+  域名   </em>   <strong>部署路线</strong>：后端采用 Docker 部署，前端则是利用 Github Action 构建 Shiro 然后推送到服务器上。</p>
+<ul>
+<li><strong>个人配置</strong>：MacBook Pro + 1Panel 服务器 （阿里云买的轻量级 <strong>2</strong>vCPU/<strong>1</strong>GiB）+  域名</li>
+<li><strong>部署路线</strong>：后端采用 Docker 部署，前端则是利用 Github Action 构建 Shiro 然后推送到服务器上。</li>
+</ul>
 <hr>
-<p>## 💳 准备工作<strong>（氪金环节）</strong></p>
+<h2>💳 准备工作<strong>（氪金环节）</strong></h2>
 <p>万丈高楼平地起，首先你得拥有：</p>
-<p>1.  <strong>一台自己的服务器</strong>：如果只是为了搞一个网页 ，可以像我一样搞一个很小规模的那种。   2.  <strong>一个自己喜欢的域名</strong>：这可是你的门面！</p>
-<p>&gt; 笨人的上述工作都是在阿里云购买完成的。</p>
+<ol>
+<li><strong>一台自己的服务器</strong>：如果只是为了搞一个网页 ，可以像我一样搞一个很小规模的那种。</li>
+<li><strong>一个自己喜欢的域名</strong>：这可是你的门面！</li>
+</ol>
+<blockquote>笨人的上述工作都是在阿里云购买完成的。</blockquote>
 <hr>
-<p>## 🛠️ 安装 1Panel</p>
+<h2>🛠️ 安装 1Panel</h2>
 <p>如果你并非购买的应用镜像（也就是服务器是“毛坯房”），则需要进行这一步骤。</p>
 <p>参考官网的 <a href="https://1panel.cn/docs/v2/installation/online_installation/"><strong>1Panel官方安装文档</strong></a> 步骤即可，一步一步慢慢设置即可～</p>
 <hr>
-<p>## ⚙️ 后端 Core 的部署（通俗讲就是给博客安个“发动机”）</p>
+<h2>⚙️ 后端 Core 的部署（通俗讲就是给博客安个“发动机”）</h2>
 <p>这里推荐用 Docker 去进行后端的部署，一般来讲如果是 1Panel 面板会自动安装下载好，干净又卫生。</p>
-<p>### 1. 检查并安装 Docker</p>
+<h3>1. 检查并安装 Docker</h3>
 <p>可以先在 1Panel 的 <strong>「容器」</strong> 菜单中检查下 Docker 是否安装好再进行下一步。</p>
-<p>### 2. 拉取 mx-space 文件并修改配置</p>
+<h3>2. 拉取 mx-space 文件并修改配置</h3>
 <p>可使用命令行直接拉取文件，也可以使用 1Panel 面板终端进行拉取，存放路径可以自行修改（但要记住在哪！）。</p>
-<p>```bash   # 回到根目录并创建 mx-space/core 的文件夹，并跳转至 core 文件夹下   cd &amp;&amp; mkdir -p mx-space/core &amp;&amp; cd $_</p>
-<p># 拉取 docker-compose.yml 文件   wget https://fastly.jsdelivr.net/gh/mx-space/core@master/docker-compose.yml   ```</p>
+<pre><code># 回到根目录并创建 mx-space/core 的文件夹，并跳转至 core 文件夹下
+cd &amp;&amp; mkdir -p mx-space/core &amp;&amp; cd $_ 
+
+# 拉取 docker-compose.yml 文件
+wget https://fastly.jsdelivr.net/gh/mx-space/core@master/docker-compose.yml</code></pre>
 <p>用 <code>vim</code> 或者自己习惯的方式修改 <code>docker-compose.yml</code> 内的部分内容（见注释）：</p>
-<p>```yaml   services:     app:       container_name: mx-server       image: innei/mx-server:latest       environment:         - TZ=Asia/Shanghai         - NODE_ENV=production         - DB_HOST=mongo         - REDIS_HOST=redis         # 填写自己博客的域名，多个用 , 相连，这里可以额外加上本机地址允许他们自己访问自己         - ALLOWED_ORIGINS=blog.lolita.best,localhost:<em>,127.0.0.1:</em>          # 填写你自己生成的JWT密钥，16≤密钥长度≤32 个字符（务必保存好自己的密钥不要泄露）         - JWT_SECRET=xxxxx          # 是否开启加密的相关配置，这边默认为false与空即可，如需加密可以参考官方配置文档         - ENCRYPT_ENABLE=false         - ENCRYPT_KEY=       volumes:         - ./data/mx-space:/root/.mx-space       ports:         # -&#x27;2333:2333&#x27; 修改了docker的端口映射，不开放端口，只对本机监听         - &#x27;127.0.0.1:2333:2333&#x27;        depends_on:         - mongo         - redis       networks:         - mx-space       restart: unless-stopped       healthcheck:         test: [&#x27;CMD&#x27;, &#x27;curl&#x27;, &#x27;-f&#x27;, &#x27;http://127.0.0.1:2333/api/v2/ping&#x27;]         interval: 1m30s         timeout: 30s         retries: 5         start_period: 30s</p>
-<p>mongo:       container_name: mongo       image: mongo       volumes:         - ./data/db:/data/db       networks:         - mx-space       restart: unless-stopped</p>
-<p>redis:       image: redis:alpine       container_name: redis       volumes:         - ./data/redis:/data       healthcheck:</p>
-<p>test: [&#x27;CMD-SHELL&#x27;, &#x27;redis-cli ping | grep PONG&#x27;]         start_period: 20s         interval: 30s         retries: 5         timeout: 3s       networks:         - mx-space       restart: unless-stopped</p>
-<p>networks:     mx-space:       driver: bridge   ```</p>
-<p>### 3. 启动 Core</p>
+<pre><code>services:
+  app:
+    container_name: mx-server
+    image: innei/mx-server:latest
+    environment:
+      - TZ=Asia/Shanghai
+      - NODE_ENV=production
+      - DB_HOST=mongo
+      - REDIS_HOST=redis
+      # 填写自己博客的域名，多个用 , 相连，这里可以额外加上本机地址允许他们自己访问自己
+      - ALLOWED_ORIGINS=blog.lolita.best,localhost:*,127.0.0.1:* 
+      # 填写你自己生成的JWT密钥，16≤密钥长度≤32 个字符（务必保存好自己的密钥不要泄露）
+      - JWT_SECRET=xxxxx 
+      # 是否开启加密的相关配置，这边默认为false与空即可，如需加密可以参考官方配置文档
+      - ENCRYPT_ENABLE=false
+      - ENCRYPT_KEY=
+    volumes:
+      - ./data/mx-space:/root/.mx-space
+    ports:
+      # -&#x27;2333:2333&#x27; 修改了docker的端口映射，不开放端口，只对本机监听
+      - &#x27;127.0.0.1:2333:2333&#x27; 
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - mx-space
+    restart: unless-stopped
+    healthcheck:
+      test: [&#x27;CMD&#x27;, &#x27;curl&#x27;, &#x27;-f&#x27;, &#x27;http://127.0.0.1:2333/api/v2/ping&#x27;]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  mongo:
+    container_name: mongo
+    image: mongo
+    volumes:
+      - ./data/db:/data/db
+    networks:
+      - mx-space
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: [&#x27;CMD-SHELL&#x27;, &#x27;redis-cli ping | grep PONG&#x27;]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    networks:
+      - mx-space
+    restart: unless-stopped
+
+networks:
+  mx-space:
+    driver: bridge</code></pre>
+<h3>3. 启动 Core</h3>
 <p>在上述操作都没问题后，直接在当前的终端目录下启动启动！</p>
-<p>``<code>bash   # 后续如果需要更新后端或者yaml配置修改更新容器也是一样的指令   docker compose pull &amp;&amp; docker compose up -d   </code>``</p>
+<pre><code># 后续如果需要更新后端或者yaml配置修改更新容器也是一样的指令
+docker compose pull &amp;&amp; docker compose up -d</code></pre>
 <p>启动成功后你可以在 1Panel 的侧栏容器内看到 <code>mx-server</code>，<code>redis</code>，<code>mongo</code> 这三个容器的运行情况（都是绿色 <code>已启动</code>）。至此你已经成功布置好了后端。</p>
-<p>### 4. 反向代理</p>
+<h3>4. 反向代理</h3>
 <p>后端是支棱起来了，但现在它还只是个“国内巨星”，外面的人访问不到。我们需要设置反向代理，打通它与外界。</p>
 <p>可以参考官方安装设置反向代理的操作！</p>
-<p>&gt; PS ：（根据自身购买的域名的特点，结合 AI 老师搞一下即可）</p>
+<blockquote>PS ：（根据自身购买的域名的特点，结合 AI 老师搞一下即可）</blockquote>
 <p><a href="https://mx-space.js.org/docs/core/extra#%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86"><strong>官方进行反向代理的教学</strong></a></p>
 <p>设置完毕后，这时候你就可以通过 <code>https://你的域名/qaqdmin</code> 访问后台管理地址了，根据指示填写对应内容即可。</p>
 <p>在设定的网站设置内填写对应的地址（看准，是你自己的！！！）</p>
 <hr>
-<p>## ✨ 前端部署（“精装修”）</p>
+<h2>✨ 前端部署（“精装修”）</h2>
 <p>俺是用的是 Shiro 的开源版本，并通过 Github Action 的方式自动部署。</p>
 <p>25年用的时候貌似开源就已经不后续维护了 但闭源还在更新</p>
 <p>所以可以根据自己审美选择别的（）</p>
-<p>### 1. Fork 仓库并修改 Workflows 文件</p>
+<h3>1. Fork 仓库并修改 Workflows 文件</h3>
 <p><strong>仓库地址</strong>: <a href="https://github.com/innei-dev/shiroi-deploy-action"><strong>GitHub - innei-dev/shiroi-deploy-action</strong></a></p>
 <p>Fork 到本地后打开，修改 <code>workflows</code> 下的 <code>deploy.yml</code> 文件 （要改的地方有中文注释）。</p>
-<p>```yaml   # deploy.yml 的完整内容   name: Build and Deploy</p>
-<p>on:     workflow_dispatch: # 增加了工作流的手动运行     push:       branches:         - main     # schedule:     # - cron: &#x27;0 3 <em> </em> *&#x27;</p>
-<p>repository_dispatch:       types: [trigger-workflow]</p>
-<p>permissions: write-all   concurrency:     group: ${{ github.workflow }}-${{ github.ref }}     cancel-in-progress: true</p>
-<p>env:     PNPM_VERSION: 9.x.x     HASH_FILE: build_hash</p>
-<p>jobs:     prepare:       name: Prepare       runs-on: ubuntu-latest       if: ${{ github.event.head_commit.message != &#x27;Update hash file&#x27; }}</p>
-<p>outputs:         hash_content: ${{ steps.read_hash.outputs.hash_content }}</p>
-<p>steps:         - name: Checkout           uses: actions/checkout@v4         - name: Read HASH_FILE content           id: read_hash</p>
-<p>run: |</p>
-<p>content=$(cat ${{ env.HASH_FILE }}) || true             echo &quot;hash_content=$content" >> "$GITHUB_OUTPUT&quot;     check:       name: Check Should Rebuild       runs-on: ubuntu-latest       needs: prepare       outputs:         canceled: ${{ steps.use_content.outputs.canceled }}</p>
-<p>steps:         - uses: actions/checkout@v4           with:             repository: innei-dev/shiroi # 填写你需要访问的仓库，如开源版为innei/shiro             token: ${{ secrets.GH_PAT }} # <code>GH_PAT</code> is a secret that contains your PAT             fetch-depth: 0             lfs: true</p>
-<p>- name: Use content from prev job and compare           id: use_content           env:             FILE_HASH: ${{ needs.prepare.outputs.hash_content }}</p>
-<p>run: |             file_hash=$FILE_HASH             current_hash=$(git rev-parse --short HEAD)             echo &quot;File Hash: $file_hash&quot;             echo &quot;Current Git Hash: $current_hash&quot;             if [ &quot;$file_hash" == "$current_hash&quot; ]; then               echo &quot;Hashes match. Stopping workflow.&quot;               echo &quot;canceled=true&quot; &gt;&gt; $GITHUB_OUTPUT             else               echo &quot;Hashes do not match. Continuing workflow.&quot;             fi</p>
-<p>build:       name: Build artifact       runs-on: ubuntu-latest       needs: check       if: ${{needs.check.outputs.canceled != &#x27;true&#x27;}}</p>
-<p>strategy:         matrix:           node-version: [20.x]       outputs:         sha_short: ${{ steps.store.outputs.sha_short }}         branch: ${{ steps.store.outputs.branch }}       steps:         - uses: actions/checkout@v4           with:             repository: innei-dev/shiroi # 填写你需要访问的仓库，如开源版为innei/shiro             token: ${{ secrets.GH_PAT }} # <code>GH_PAT</code> is a secret that contains your PAT             fetch-depth: 0             lfs: true</p>
-<p>- name: Checkout LFS objects           run: git lfs checkout         - uses: pnpm/action-setup@v2           with:             version: ${{ env.PNPM_VERSION }}         - name: Use Node.js ${{ matrix.node-version }}           uses: actions/setup-node@v4           with:             node-version: ${{ matrix.node-version }}             cache: &#x27;pnpm&#x27;         - uses: jongwooo/next-cache@v1         - name: Install dependencies           run: pnpm install         - name: Build project</p>
-<p>run: |             sh ./ci-release-build.sh</p>
-<p>- name: Cache Build Artifacts           id: cache-primes           uses: actions/cache/save@v4           with:             path: assets             key: ${{ github.run_number }}-release</p>
-<p>- name: Store artifact commit version           shell: bash           id: store</p>
-<p>run: |             sha_short=$(git rev-parse --short HEAD)             branch_name=$(git rev-parse --abbrev-ref HEAD)             echo &quot;sha_short=$sha_short" >> "$GITHUB_OUTPUT&quot;             echo &quot;branch=$branch_name" >> "$GITHUB_OUTPUT&quot;</p>
-<p>deploy:       name: Deploy artifact       runs-on: ubuntu-latest       needs: build       steps:         - name: Restore cached Build Artifacts           id: cache-primes-restore           uses: actions/cache/restore@v4           with:</p>
-<p>path: |               assets             key: ${{ github.run_number }}-release         - name: Move assets to root           run: mv assets/release.zip release.zip</p>
-<p>- name: copy file via ssh password           uses: appleboy/scp-action@v0.1.7           with:             host: ${{ secrets.HOST }}             username: ${{ secrets.USER }}             password: ${{ secrets.PASSWORD }}             key: ${{ secrets.KEY }}             port: ${{ secrets.PORT }}             source: &#x27;release.zip&#x27;             target: &#x27;/tmp/shiro&#x27;</p>
-<p>- name: Exec deploy script with SSH           uses: appleboy/ssh-action@master           with:             command_timeout: 5m             host: ${{ secrets.HOST }}             username: ${{ secrets.USER }}             password: ${{ secrets.PASSWORD }}             key: ${{ secrets.KEY }}             port: ${{ secrets.PORT }}             # script_stop: true 移除了改行指令，因为该指令已经停止使用了会提示但不影响，不改也行</p>
-<p>script: |               set -e               export NVM_DIR=~/.nvm # 定义.nvm的安装目录，否则终端运行时明明安装了但找不到命令               source ~/.nvm/nvm.sh # 识别nvm命令，否则可能会报command not found               source $HOME/.bashrc                basedir=$HOME/mx-space/shiro # 填写你自己希望的路径，因为我的后端文件在mx-space下，所以我希望我的shiro也在mx-space文件夹下，方便管理               workdir=$basedir/${{ github.run_number }}               mkdir -p $workdir               mkdir -p $basedir/.cache               mv /tmp/shiro/release.zip $workdir/release.zip               rm -r /tmp/shiro               cd $workdir               unzip -qq -o $workdir/release.zip               rm -rf $workdir/standalone/.env               ln -s $HOME/mx-space/shiro/.env $workdir/standalone/.env # 你的.env文件路径，我存放在mx-space/shiro文件夹内，方便管理               export NEXT_SHARP_PATH=$(npm root -g)/sharp               # copy workdir ecosystem.config.js to basedir if not exists               if [ ! -f $basedir/ecosystem.config.js ]; then                 cp $workdir/standalone/ecosystem.config.js $basedir/ecosystem.config.js               fi               # https://github.com/Unitech/pm2/issues/3054               # symlink workdir node entry file to basedir               ln -sf $workdir/standalone/server.js $basedir/server.js               mkdir -p $workdir/standalone/.next               rm -rf $workdir/standalone/.next/cache               ln -sf $basedir/.cache $workdir/standalone/.next/cache               cd $basedir               pm2 reload ecosystem.config.js --update-env               rm $workdir/release.zip               pm2 save               echo &quot;Deployed successfully&quot;</p>
-<p>- name: After deploy script</p>
-<p>run: |             hash=${{ needs.build.outputs.sha_short }}             # curl -X &quot;POST&quot; &quot;https://mx.innei.in/api/v2/fn/shiro/new-version-hook&quot; -H &#x27;Content-Type: application/json&#x27; -d &quot;{\&quot;hash\&quot;: \&quot;$hash\&quot;, \&quot;key\&quot;: \&quot;\&quot;}&quot;             ${{ secrets.AFTER_DEPLOY_SCRIPT }}     store:       name: Store artifact commit version       runs-on: ubuntu-latest       needs: [deploy, build]       steps:         - name: Checkout           uses: actions/checkout@v4           with:             persist-credentials: false             fetch-depth: 0         - name: Use outputs from build           env:             SHA_SHORT: ${{ needs.build.outputs.sha_short }}             BRANCH: ${{ needs.build.outputs.branch }}</p>
-<p>run: |             echo &quot;SHA Short from build: $SHA_SHORT&quot;             echo &quot;Branch from build: $BRANCH&quot;         - name: Write hash to file           env:             SHA_SHORT: ${{ needs.build.outputs.sha_short }}           run: echo $SHA_SHORT > ${{ env.HASH_FILE }}         - name: Commit files</p>
-<p>run: |             git config --local user.email &quot;41898282+github-actions[bot]@users.noreply.github.com&quot;             git config --local user.name &quot;github-actions[bot]&quot;             git add ${{ env.HASH_FILE }}             git commit -a -m &quot;Update hash file&quot;         - name: Push changes           uses: ad-m/github-push-action@master           with:             github_token: ${{ secrets.GITHUB_TOKEN }}             branch: ${{ github.ref }}   ```</p>
-<p>### 2. 设置工作流的 Secrets</p>
+<pre><code># deploy.yml 的完整内容
+name: Build and Deploy
+
+on:
+  workflow_dispatch: # 增加了工作流的手动运行
+  push:
+    branches:
+      - main
+  # schedule:
+  # - cron: &#x27;0 3 * * *&#x27;
+
+  repository_dispatch:
+    types: [trigger-workflow]
+
+permissions: write-all
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 9.x.x
+  HASH_FILE: build_hash
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    if: ${{ github.event.head_commit.message != &#x27;Update hash file&#x27; }}
+
+    outputs:
+      hash_content: ${{ steps.read_hash.outputs.hash_content }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Read HASH_FILE content
+        id: read_hash
+        run: |
+          content=$(cat ${{ env.HASH_FILE }}) || true
+          echo &quot;hash_content=$content" >> "$GITHUB_OUTPUT&quot;
+  check:
+    name: Check Should Rebuild
+    runs-on: ubuntu-latest
+    needs: prepare
+    outputs:
+      canceled: ${{ steps.use_content.outputs.canceled }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: innei-dev/shiroi # 填写你需要访问的仓库，如开源版为innei/shiro
+          token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
+          fetch-depth: 0
+          lfs: true
+
+      - name: Use content from prev job and compare
+        id: use_content
+        env:
+          FILE_HASH: ${{ needs.prepare.outputs.hash_content }}
+        run: |
+          file_hash=$FILE_HASH
+          current_hash=$(git rev-parse --short HEAD)
+          echo &quot;File Hash: $file_hash&quot;
+          echo &quot;Current Git Hash: $current_hash&quot;
+          if [ &quot;$file_hash" == "$current_hash&quot; ]; then
+            echo &quot;Hashes match. Stopping workflow.&quot;
+            echo &quot;canceled=true&quot; &gt;&gt; $GITHUB_OUTPUT
+          else
+            echo &quot;Hashes do not match. Continuing workflow.&quot;
+          fi
+
+  build:
+    name: Build artifact
+    runs-on: ubuntu-latest
+    needs: check
+    if: ${{needs.check.outputs.canceled != &#x27;true&#x27;}}
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+    outputs:
+      sha_short: ${{ steps.store.outputs.sha_short }}
+      branch: ${{ steps.store.outputs.branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: innei-dev/shiroi # 填写你需要访问的仓库，如开源版为innei/shiro
+          token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
+          fetch-depth: 0
+          lfs: true
+
+      - name: Checkout LFS objects
+        run: git lfs checkout
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: &#x27;pnpm&#x27;
+      - uses: jongwooo/next-cache@v1
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build project
+        run: |
+          sh ./ci-release-build.sh
+
+      - name: Cache Build Artifacts
+        id: cache-primes
+        uses: actions/cache/save@v4
+        with:
+          path: assets
+          key: ${{ github.run_number }}-release
+
+      - name: Store artifact commit version
+        shell: bash
+        id: store
+        run: |
+          sha_short=$(git rev-parse --short HEAD)
+          branch_name=$(git rev-parse --abbrev-ref HEAD)
+          echo &quot;sha_short=$sha_short" >> "$GITHUB_OUTPUT&quot;
+          echo &quot;branch=$branch_name" >> "$GITHUB_OUTPUT&quot;
+
+  deploy:
+    name: Deploy artifact
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Restore cached Build Artifacts
+        id: cache-primes-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            assets
+          key: ${{ github.run_number }}-release
+      - name: Move assets to root
+        run: mv assets/release.zip release.zip
+
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          password: ${{ secrets.PASSWORD }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
+          source: &#x27;release.zip&#x27;
+          target: &#x27;/tmp/shiro&#x27;
+
+      - name: Exec deploy script with SSH
+        uses: appleboy/ssh-action@master
+        with:
+          command_timeout: 5m
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          password: ${{ secrets.PASSWORD }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
+          # script_stop: true 移除了改行指令，因为该指令已经停止使用了会提示但不影响，不改也行
+          script: |
+            set -e
+            export NVM_DIR=~/.nvm # 定义.nvm的安装目录，否则终端运行时明明安装了但找不到命令
+            source ~/.nvm/nvm.sh # 识别nvm命令，否则可能会报command not found
+            source $HOME/.bashrc 
+            basedir=$HOME/mx-space/shiro # 填写你自己希望的路径，因为我的后端文件在mx-space下，所以我希望我的shiro也在mx-space文件夹下，方便管理
+            workdir=$basedir/${{ github.run_number }}
+            mkdir -p $workdir
+            mkdir -p $basedir/.cache
+            mv /tmp/shiro/release.zip $workdir/release.zip
+            rm -r /tmp/shiro
+            cd $workdir
+            unzip -qq -o $workdir/release.zip
+            rm -rf $workdir/standalone/.env
+            ln -s $HOME/mx-space/shiro/.env $workdir/standalone/.env # 你的.env文件路径，我存放在mx-space/shiro文件夹内，方便管理
+            export NEXT_SHARP_PATH=$(npm root -g)/sharp
+            # copy workdir ecosystem.config.js to basedir if not exists
+            if [ ! -f $basedir/ecosystem.config.js ]; then
+              cp $workdir/standalone/ecosystem.config.js $basedir/ecosystem.config.js
+            fi
+            # https://github.com/Unitech/pm2/issues/3054
+            # symlink workdir node entry file to basedir
+            ln -sf $workdir/standalone/server.js $basedir/server.js
+            mkdir -p $workdir/standalone/.next
+            rm -rf $workdir/standalone/.next/cache
+            ln -sf $basedir/.cache $workdir/standalone/.next/cache
+            cd $basedir
+            pm2 reload ecosystem.config.js --update-env
+            rm $workdir/release.zip
+            pm2 save
+            echo &quot;Deployed successfully&quot;
+
+      - name: After deploy script
+        run: |
+          hash=${{ needs.build.outputs.sha_short }}
+          # curl -X &quot;POST&quot; &quot;https://mx.innei.in/api/v2/fn/shiro/new-version-hook&quot; -H &#x27;Content-Type: application/json&#x27; -d &quot;{\&quot;hash\&quot;: \&quot;$hash\&quot;, \&quot;key\&quot;: \&quot;\&quot;}&quot;
+          ${{ secrets.AFTER_DEPLOY_SCRIPT }}
+  store:
+    name: Store artifact commit version
+    runs-on: ubuntu-latest
+    needs: [deploy, build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Use outputs from build
+        env:
+          SHA_SHORT: ${{ needs.build.outputs.sha_short }}
+          BRANCH: ${{ needs.build.outputs.branch }}
+        run: |
+          echo &quot;SHA Short from build: $SHA_SHORT&quot;
+          echo &quot;Branch from build: $BRANCH&quot;
+      - name: Write hash to file
+        env:
+          SHA_SHORT: ${{ needs.build.outputs.sha_short }}
+        run: echo $SHA_SHORT > ${{ env.HASH_FILE }}
+      - name: Commit files
+        run: |
+          git config --local user.email &quot;41898282+github-actions[bot]@users.noreply.github.com&quot;
+          git config --local user.name &quot;github-actions[bot]&quot;
+          git add ${{ env.HASH_FILE }}
+          git commit -a -m &quot;Update hash file&quot;
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}</code></pre>
+<h3>2. 设置工作流的 Secrets</h3>
 <p>为了让 GitHub Actions 能够安全连接到你的服务器，需要在仓库的 <strong><code>Settings -&gt; Secrets and variables -&gt; Actions</code></strong> 中设置以下密钥：</p>
-<p><em>   <code>HOST</code>: 服务器地址   </em>   <code>USER</code>: 服务器用户名   <em>   <code>PASSWORD</code>: 服务器密码   </em>   <code>PORT</code>: 服务器 SSH 端口   <em>   <code>KEY</code>: 服务器 SSH Key（可选，密码 key 二选一）   </em>   <code>GH_PAT</code>: 可访问之前 <code>repository</code> 内填写仓库的 Github Token</p>
-<p>&gt; 至于如何获取 <code>KEY</code> 和 <code>GH_PAT</code> 可以自行 google 或者 AI（一步步操作）这个不难～</p>
-<p>### 3. 配置 <code>.env</code> 文件</p>
+<ul>
+<li><code>HOST</code>: 服务器地址</li>
+<li><code>USER</code>: 服务器用户名</li>
+<li><code>PASSWORD</code>: 服务器密码</li>
+<li><code>PORT</code>: 服务器 SSH 端口</li>
+<li><code>KEY</code>: 服务器 SSH Key（可选，密码 key 二选一）</li>
+<li><code>GH_PAT</code>: 可访问之前 <code>repository</code> 内填写仓库的 Github Token</li>
+</ul>
+<blockquote>至于如何获取 <code>KEY</code> 和 <code>GH_PAT</code> 可以自行 google 或者 AI（一步步操作）这个不难～</blockquote>
+<h3>3. 配置 <code>.env</code> 文件</h3>
 <p>返回到 1Panel，在你的工作流内指定好的地方（就是找到 <code>/shiro</code> 所在的地方）</p>
 <p>创建 <code>.env</code> 文件并将以下内容复制修改成自己的内容。</p>
 <p>如上方参考中是 <code>root/mx-space/shiro</code>。</p>
-<p>&gt; （在终端中熟练掌握 <code>cd</code> 和 <code>ls</code> 两个指令有助于你迅速找到相应内容）</p>
-<p>``<code>env   # 后端API地址   NEXT_PUBLIC_API_URL=https://blog.lolita.best/api/v2   # 后端网关地址   NEXT_PUBLIC_GATEWAY_URL=https://blog.lolita.best   # TMDB信息获取   TMDB_API_KEY=填写你的TMDB-API   # GitHub token，用来获取前端版本哈希   GH_TOKEN=填你自己的token   </code>``</p>
-<p>### 4. 服务器安装必要环境</p>
+<blockquote>（在终端中熟练掌握 <code>cd</code> 和 <code>ls</code> 两个指令有助于你迅速找到相应内容）</blockquote>
+<pre><code># 后端API地址
+NEXT_PUBLIC_API_URL=https://blog.lolita.best/api/v2
+# 后端网关地址
+NEXT_PUBLIC_GATEWAY_URL=https://blog.lolita.best
+# TMDB信息获取
+TMDB_API_KEY=填写你的TMDB-API
+# GitHub token，用来获取前端版本哈希
+GH_TOKEN=填你自己的token</code></pre>
+<h3>4. 服务器安装必要环境</h3>
 <p>要在服务器的终端处下载以下一系列帅气的助手：Node.js, npm, pnpm, pm2, sharp。</p>
 <p>可以在 1Panel 的终端内输入以下指令进行直接安装。</p>
-<p>&gt; （温馨提示：如果内存不够，可以尝试 swap ~~白嫖一点空间~~）</p>
-<p>```bash   #!/bin/bash</p>
-<p>echo &quot;🚀 开始安装 Node.js、npm、pnpm、pm2、sharp...&quot;</p>
-<p># 确认 Homebrew 是否已安装   if ! command -v brew &amp;&gt; /dev/null   then       echo &quot;📦 未检测到 Homebrew，开始安装...&quot;       /bin/bash -c &quot;$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)&quot;       echo &#x27;eval &quot;$(/opt/homebrew/bin/brew shellenv)&quot;&#x27; &gt;&gt; ~/.zprofile       eval &quot;$(/opt/homebrew/bin/brew shellenv)&quot;   fi</p>
-<p># 更新 brew   brew update</p>
-<p># 安装 Node.js（自带 npm）   echo &quot;📦 安装 Node.js 和 npm...&quot;   brew install node</p>
-<p># 安装 pnpm   echo &quot;📦 安装 pnpm...&quot;   npm install -g pnpm</p>
-<p># 安装 pm2   echo &quot;📦 安装 pm2...&quot;   npm install -g pm2</p>
-<p># 安装 sharp 所需依赖   echo &quot;📦 安装 sharp 依赖...&quot;   brew install pkg-config cairo pango libpng jpeg giflib librsvg</p>
-<p># 安装 sharp   echo &quot;📦 安装 sharp...&quot;   npm install -g sharp</p>
-<p># 输出版本信息   echo &quot;✅ 安装完成！版本信息如下：&quot;   node -v   npm -v   pnpm -v   pm2 -v   node -e &quot;console.log(&#x27;sharp version:&#x27;, require(&#x27;sharp&#x27;).version)&quot;   ```</p>
-<p>### 5. 启动 Workflow</p>
+<blockquote>（温馨提示：如果内存不够，可以尝试 swap ~~白嫖一点空间~~）</blockquote>
+<pre><code>#!/bin/bash
+
+echo &quot;🚀 开始安装 Node.js、npm、pnpm、pm2、sharp...&quot;
+
+# 确认 Homebrew 是否已安装
+if ! command -v brew &amp;&gt; /dev/null
+then
+    echo &quot;📦 未检测到 Homebrew，开始安装...&quot;
+    /bin/bash -c &quot;$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)&quot;
+    echo &#x27;eval &quot;$(/opt/homebrew/bin/brew shellenv)&quot;&#x27; &gt;&gt; ~/.zprofile
+    eval &quot;$(/opt/homebrew/bin/brew shellenv)&quot;
+fi
+
+# 更新 brew
+brew update
+
+# 安装 Node.js（自带 npm）
+echo &quot;📦 安装 Node.js 和 npm...&quot;
+brew install node
+
+# 安装 pnpm
+echo &quot;📦 安装 pnpm...&quot;
+npm install -g pnpm
+
+# 安装 pm2
+echo &quot;📦 安装 pm2...&quot;
+npm install -g pm2
+
+# 安装 sharp 所需依赖
+echo &quot;📦 安装 sharp 依赖...&quot;
+brew install pkg-config cairo pango libpng jpeg giflib librsvg
+
+# 安装 sharp
+echo &quot;📦 安装 sharp...&quot;
+npm install -g sharp
+
+# 输出版本信息
+echo &quot;✅ 安装完成！版本信息如下：&quot;
+node -v
+npm -v
+pnpm -v
+pm2 -v
+node -e &quot;console.log(&#x27;sharp version:&#x27;, require(&#x27;sharp&#x27;).version)&quot;</code></pre>
+<h3>5. 启动 Workflow</h3>
 <p>在 Github 内找 <strong><code>Actions</code></strong>，然后手动 <code>Run workflow</code> 并等待工作流跑完，不报错、显示绿色就成功了。</p>
-<p>### 6. 管理后台配置 Shiro 主题云函数</p>
-<p>&gt; <strong>提示</strong>：   &gt; <strong>云函数的配置修改更新并非立刻刷新，需要时间请耐心等待或者多次刷新</strong>！！！</p>
+<h3>6. 管理后台配置 Shiro 主题云函数</h3>
+<blockquote><strong>提示</strong>：<br><strong>云函数的配置修改更新并非立刻刷新，需要时间请耐心等待或者多次刷新</strong>！！！</blockquote>
 <p>Shiro 主题还要配合云函数才可以部署，进入管理后台 <strong><code>/附加功能/配置与云函数</code></strong> 内，先导入相关文件。</p>
 <p>右上角第二个下载 —— 弹出弹窗选择下边的导入shiro</p>
 <p>再点击右上角的新增按钮，在编辑页面中，填入以下设置：</p>
-<p><em>   <strong>名称</strong>：<code>shiro</code>   </em>   <strong>引用</strong>：<code>theme</code>   <em>   <strong>数据类型</strong>：<code>JSON</code>   </em>   <strong>数据</strong>：右侧复制以下示例，更改为自己的信息。数据内容参考：<a href="https://mx-space.js.org/docs/themes/shiro/config"><strong>配置 - Mix Space 文档</strong></a></p>
-<p>``<code>json   {     &quot;footer&quot;: {       &quot;otherInfo&quot;: {         &quot;date&quot;: &quot;2019-{{now}}&quot;,         &quot;icp&quot;: {           &quot;text&quot;: &quot;萌ICP备20248012号&quot;,           &quot;link&quot;: &quot;https://icp.gov.moe/?keyword=20248012&quot;         }       },       &quot;linkSections&quot;: [         {           &quot;name&quot;: &quot;关于&quot;,           &quot;links&quot;: [             { &quot;name&quot;: &quot;关于本站&quot;, &quot;href&quot;: &quot;/about-site&quot; },             { &quot;name&quot;: &quot;关于我&quot;, &quot;href&quot;: &quot;/about&quot;, &quot;external&quot;: true }           ]         },         {           &quot;name&quot;: &quot;更多&quot;,           &quot;links&quot;: [             { &quot;name&quot;: &quot;时间线&quot;, &quot;href&quot;: &quot;/timeline&quot; },             { &quot;name&quot;: &quot;友链&quot;, &quot;href&quot;: &quot;/friends&quot;, &quot;external&quot;: true }           ]         },         {           &quot;name&quot;: &quot;联系&quot;,           &quot;links&quot;: [             { &quot;name&quot;: &quot;写留言&quot;, &quot;href&quot;: &quot;/message&quot;, &quot;external&quot;: true },             { &quot;name&quot;: &quot;发邮件&quot;, &quot;href&quot;: &quot;mailto:mine.sumika@gmail.com&quot;, &quot;external&quot;: true },             { &quot;name&quot;: &quot;GitHub&quot;, &quot;href&quot;: &quot;https://github.com/Sumikanya&quot;, &quot;external&quot;: true }           ]         }       ]     },     &quot;config&quot;: {       &quot;color&quot;: {         &quot;light&quot;: [&quot;#33A6B8&quot;, &quot;#FF6666&quot;, &quot;#26A69A&quot;, &quot;#fb7287&quot;, &quot;#69a6cc&quot;, &quot;#F11A7B&quot;, &quot;#78C1F3&quot;, &quot;#FF6666&quot;, &quot;#7ACDF6&quot;],         &quot;dark&quot;: [&quot;#F596AA&quot;, &quot;#A0A7D4&quot;, &quot;#ff7b7b&quot;, &quot;#99D8CF&quot;, &quot;#838BC6&quot;, &quot;#FFE5AD&quot;, &quot;#9BE8D8&quot;, &quot;#A1CCD1&quot;, &quot;#EAAEBA&quot;]       },       &quot;bg&quot;: [         &quot;https://github.com/Innei/static/blob/master/images/F0q8mwwaIAEtird.jpeg?raw=true&quot;,         &quot;https://github.com/Innei/static/blob/master/images/IMG_2111.jpeg.webp.jpg?raw=true&quot;       ],       &quot;custom&quot;: { &quot;css&quot;: [], &quot;styles&quot;: [], &quot;js&quot;: [], &quot;scripts&quot;: [] },       &quot;site&quot;: {         &quot;favicon&quot;: &quot;https://cn.cravatar.com/avatar/08d99bea604c306b51ebe162e93412f1?s=36&quot;,         &quot;faviconDark&quot;: &quot;https://cn.cravatar.com/avatar/08d99bea604c306b51ebe162e93412f1?s=36&quot;       },       &quot;hero&quot;: {         &quot;title&quot;: {           &quot;template&quot;: [             { &quot;type&quot;: &quot;h1&quot;, &quot;text&quot;: &quot;Hi, I&#x27;m &quot;, &quot;class&quot;: &quot;font-light text-4xl&quot; },             { &quot;type&quot;: &quot;h1&quot;, &quot;text&quot;: &quot;星野纯夏&quot;, &quot;class&quot;: &quot;font-medium mx-2 text-4xl&quot; },             { &quot;type&quot;: &quot;h1&quot;, &quot;text&quot;: &quot;💕。&quot;, &quot;class&quot;: &quot;font-light text-4xl&quot; },             { &quot;type&quot;: &quot;br&quot; },             { &quot;type&quot;: &quot;h1&quot;, &quot;text&quot;: &quot;一个喜欢科技数码的Lo娘 &quot;, &quot;class&quot;: &quot;font-light text-4xl&quot; },             { &quot;type&quot;: &quot;code&quot;, &quot;text&quot;: &quot;🦋&lt;INFP&gt;🦋&quot;, &quot;class&quot;: &quot;font-medium mx-2 text-3xl rounded p-1 bg-gray-200 dark:bg-gray-800/0 hover:dark:bg-gray-800/100 bg-opacity-0 hover:bg-opacity-100 transition-background duration-200&quot; },             { &quot;type&quot;: &quot;span&quot;, &quot;class&quot;: &quot;inline-block w-[1px] h-8 -bottom-2 relative bg-gray-800/80 dark:bg-gray-200/80 opacity-0 group-hover:opacity-100 transition-opacity duration-200 group-hover:animation-blink&quot; }           ]         },         &quot;description&quot;: &quot;希望在这个世界上可以留下属于我的痕迹&quot;,         &quot;Hitokoto&quot;: { &quot;random&quot;: true, &quot;custom&quot;: &quot;自定义一言&quot; }       },       &quot;module&quot;: {         &quot;activity&quot;: { &quot;enable&quot;: true, &quot;endpoint&quot;: &quot;/fn/ps/update&quot; },         &quot;donate&quot;: {           &quot;enable&quot;: false, &quot;link&quot;: &quot;https://afdian.net/@Innei&quot;,           &quot;qrcode&quot;: [&quot;https://cdn.jsdelivr.net/gh/Innei/img-bed@master/20191211132347.png&quot;, &quot;https://cdn.innei.ren/bed/2023/0424213144.png&quot;]         },         &quot;bilibili&quot;: { &quot;liveId&quot;: 19781 }       }     }   }   </code>``</p>
-<p>### 7. 设置 PM2 服务在重启之后还原进程</p>
-<p>``<code>bash   pm2 startup   pm2 save   </code>``</p>
+<ul>
+<li><strong>名称</strong>：<code>shiro</code></li>
+<li><strong>引用</strong>：<code>theme</code></li>
+<li><strong>数据类型</strong>：<code>JSON</code></li>
+<li><strong>数据</strong>：右侧复制以下示例，更改为自己的信息。数据内容参考：<a href="https://mx-space.js.org/docs/themes/shiro/config"><strong>配置 - Mix Space 文档</strong></a></li>
+</ul>
+<pre><code>{
+  &quot;footer&quot;: {
+    &quot;otherInfo&quot;: {
+      &quot;date&quot;: &quot;2019-{{now}}&quot;,
+      &quot;icp&quot;: {
+        &quot;text&quot;: &quot;萌ICP备20248012号&quot;,
+        &quot;link&quot;: &quot;https://icp.gov.moe/?keyword=20248012&quot;
+      }
+    },
+    &quot;linkSections&quot;: [
+      {
+        &quot;name&quot;: &quot;关于&quot;,
+        &quot;links&quot;: [
+          { &quot;name&quot;: &quot;关于本站&quot;, &quot;href&quot;: &quot;/about-site&quot; },
+          { &quot;name&quot;: &quot;关于我&quot;, &quot;href&quot;: &quot;/about&quot;, &quot;external&quot;: true }
+        ]
+      },
+      {
+        &quot;name&quot;: &quot;更多&quot;,
+        &quot;links&quot;: [
+          { &quot;name&quot;: &quot;时间线&quot;, &quot;href&quot;: &quot;/timeline&quot; },
+          { &quot;name&quot;: &quot;友链&quot;, &quot;href&quot;: &quot;/friends&quot;, &quot;external&quot;: true }
+        ]
+      },
+      {
+        &quot;name&quot;: &quot;联系&quot;,
+        &quot;links&quot;: [
+          { &quot;name&quot;: &quot;写留言&quot;, &quot;href&quot;: &quot;/message&quot;, &quot;external&quot;: true },
+          { &quot;name&quot;: &quot;发邮件&quot;, &quot;href&quot;: &quot;mailto:mine.sumika@gmail.com&quot;, &quot;external&quot;: true },
+          { &quot;name&quot;: &quot;GitHub&quot;, &quot;href&quot;: &quot;https://github.com/Sumikanya&quot;, &quot;external&quot;: true }
+        ]
+      }
+    ]
+  },
+  &quot;config&quot;: {
+    &quot;color&quot;: {
+      &quot;light&quot;: [&quot;#33A6B8&quot;, &quot;#FF6666&quot;, &quot;#26A69A&quot;, &quot;#fb7287&quot;, &quot;#69a6cc&quot;, &quot;#F11A7B&quot;, &quot;#78C1F3&quot;, &quot;#FF6666&quot;, &quot;#7ACDF6&quot;],
+      &quot;dark&quot;: [&quot;#F596AA&quot;, &quot;#A0A7D4&quot;, &quot;#ff7b7b&quot;, &quot;#99D8CF&quot;, &quot;#838BC6&quot;, &quot;#FFE5AD&quot;, &quot;#9BE8D8&quot;, &quot;#A1CCD1&quot;, &quot;#EAAEBA&quot;]
+    },
+    &quot;bg&quot;: [
+      &quot;https://github.com/Innei/static/blob/master/images/F0q8mwwaIAEtird.jpeg?raw=true&quot;,
+      &quot;https://github.com/Innei/static/blob/master/images/IMG_2111.jpeg.webp.jpg?raw=true&quot;
+    ],
+    &quot;custom&quot;: { &quot;css&quot;: [], &quot;styles&quot;: [], &quot;js&quot;: [], &quot;scripts&quot;: [] },
+    &quot;site&quot;: {
+      &quot;favicon&quot;: &quot;https://cn.cravatar.com/avatar/08d99bea604c306b51ebe162e93412f1?s=36&quot;,
+      &quot;faviconDark&quot;: &quot;https://cn.cravatar.com/avatar/08d99bea604c306b51ebe162e93412f1?s=36&quot;
+    },
+    &quot;hero&quot;: {
+      &quot;title&quot;: {
+        &quot;template&quot;: [
+          { &quot;type&quot;: &quot;h1&quot;, &quot;text&quot;: &quot;Hi, I&#x27;m &quot;, &quot;class&quot;: &quot;font-light text-4xl&quot; },
+          { &quot;type&quot;: &quot;h1&quot;, &quot;text&quot;: &quot;星野纯夏&quot;, &quot;class&quot;: &quot;font-medium mx-2 text-4xl&quot; },
+          { &quot;type&quot;: &quot;h1&quot;, &quot;text&quot;: &quot;💕。&quot;, &quot;class&quot;: &quot;font-light text-4xl&quot; },
+          { &quot;type&quot;: &quot;br&quot; },
+          { &quot;type&quot;: &quot;h1&quot;, &quot;text&quot;: &quot;一个喜欢科技数码的Lo娘 &quot;, &quot;class&quot;: &quot;font-light text-4xl&quot; },
+          { &quot;type&quot;: &quot;code&quot;, &quot;text&quot;: &quot;🦋&lt;INFP&gt;🦋&quot;, &quot;class&quot;: &quot;font-medium mx-2 text-3xl rounded p-1 bg-gray-200 dark:bg-gray-800/0 hover:dark:bg-gray-800/100 bg-opacity-0 hover:bg-opacity-100 transition-background duration-200&quot; },
+          { &quot;type&quot;: &quot;span&quot;, &quot;class&quot;: &quot;inline-block w-[1px] h-8 -bottom-2 relative bg-gray-800/80 dark:bg-gray-200/80 opacity-0 group-hover:opacity-100 transition-opacity duration-200 group-hover:animation-blink&quot; }
+        ]
+      },
+      &quot;description&quot;: &quot;希望在这个世界上可以留下属于我的痕迹&quot;,
+      &quot;Hitokoto&quot;: { &quot;random&quot;: true, &quot;custom&quot;: &quot;自定义一言&quot; }
+    },
+    &quot;module&quot;: {
+      &quot;activity&quot;: { &quot;enable&quot;: true, &quot;endpoint&quot;: &quot;/fn/ps/update&quot; },
+      &quot;donate&quot;: {
+        &quot;enable&quot;: false, &quot;link&quot;: &quot;https://afdian.net/@Innei&quot;,
+        &quot;qrcode&quot;: [&quot;https://cdn.jsdelivr.net/gh/Innei/img-bed@master/20191211132347.png&quot;, &quot;https://cdn.innei.ren/bed/2023/0424213144.png&quot;]
+      },
+      &quot;bilibili&quot;: { &quot;liveId&quot;: 19781 }
+    }
+  }
+}</code></pre>
+<h3>7. 设置 PM2 服务在重启之后还原进程</h3>
+<pre><code>pm2 startup
+pm2 save</code></pre>
 <p>如何手动启动 Shiro？可以进入 shiro 的前端路径并运行以下代码（默认 github 的工作流配置内已经启动过了）：</p>
-<p>``<code>bash   pm2 start ecosystem.config.js   </code>``</p>
+<pre><code>pm2 start ecosystem.config.js</code></pre>
 <p>可以使用以下指令查看正在运行的进程：</p>
-<p>``<code>bash   pm2 list   </code>``</p>
+<pre><code>pm2 list</code></pre>
 <p>status 显示 绿色的 online 即可～</p>
 <hr>
-<p>## 🎉 部署完毕</p>
+<h2>🎉 部署完毕</h2>
 <p>前后端都部署成功后你就可以直接访问你的网页查看到当前效果了。</p>
 <p>也可以来看看我的主页AAA 个人感觉还是不难看的！</p>
 <hr>

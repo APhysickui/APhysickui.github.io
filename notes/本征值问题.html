@@ -1357,7 +1357,11 @@ $$ $\theta$ 称为 Ritz 值，$Q_my$ 称为 Ritz 向量。</p>
 <ol>
 <li><strong>正交化（剔除在已有的 $\mathbf{q}_1$ 和 $\mathbf{q}_2$ 上的所有投影）</strong>：</li>
 </ol>
-<p><em> 剔除 $\mathbf{q}_1$ 方向：$h_{12} = \mathbf{q}_1^T \mathbf{v}$    </em> 剔除 $\mathbf{q}_2$ 方向：$h_{22} = \mathbf{q}_2^T \mathbf{v}$      从 $\mathbf{v}$ 中把这两份投影全部扣掉：      $$\mathbf{r} = \mathbf{v} - h_{12}\mathbf{q}_1 - h_{22}\mathbf{q}_2$$</p>
+<ul>
+<li>剔除 $\mathbf{q}_1$ 方向：$h_{12} = \mathbf{q}_1^T \mathbf{v}$</li>
+<li>剔除 $\mathbf{q}_2$ 方向：$h_{22} = \mathbf{q}_2^T \mathbf{v}$</li>
+</ul>
+<p>从 $\mathbf{v}$ 中把这两份投影全部扣掉：      $$\mathbf{r} = \mathbf{v} - h_{12}\mathbf{q}_1 - h_{22}\mathbf{q}_2$$</p>
 <ol>
 <li><strong>归一化</strong>：</li>
 </ol>
