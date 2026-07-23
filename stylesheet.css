@@ -104,9 +104,153 @@ h2 {
 
 .name {
   padding-top: 20px;
-  margin: 0;
+  margin: 0 0 4px;
   font-family: 'Lato', Verdana, Helvetica, sans-serif;
   font-size: 32px;
+  text-align: center;
+}
+
+.page {
+  width: 100%;
+  max-width: 800px;
+  border: 0;
+  border-spacing: 0;
+  border-collapse: separate;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.header-copy {
+  padding: 2.5%;
+  width: 63%;
+  vertical-align: middle;
+}
+
+.header-photo {
+  padding: 2.5%;
+  width: 37%;
+  max-width: 37%;
+  vertical-align: middle;
+}
+
+.links {
+  text-align: center;
+}
+
+/* ----- Notes ----- */
+.note-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.note-list li {
+  margin: 8px 0;
+}
+
+.note-meta {
+  color: #777;
+  font-size: 13px;
+}
+
+.note-nav a {
+  font-size: 14px;
+}
+
+.note {
+  padding-top: 8px;
+}
+
+.note-title {
+  margin: 8px 0 2px;
+  font-family: 'Lato', Verdana, Helvetica, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.note-date {
+  margin: 0 0 20px;
+  color: #777;
+  font-size: 13px;
+}
+
+.note h1 { font-size: 26px; margin: 24px 0 8px; }
+.note h2 { font-size: 21px; margin: 22px 0 8px; }
+.note h3 { font-size: 17px; margin: 18px 0 6px; font-weight: 700; }
+
+.note p { margin: 12px 0; }
+
+.note ul,
+.note ol {
+  padding-left: 22px;
+}
+
+.note li {
+  margin: 4px 0;
+}
+
+.note code {
+  background: #f4f4f4;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.note pre {
+  background: #f6f8fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+
+.note pre code {
+  background: none;
+  padding: 0;
+}
+
+.note blockquote {
+  margin: 14px 0;
+  padding: 4px 16px;
+  border-left: 3px solid #ddd;
+  color: #555;
+}
+
+.note hr {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 24px 0;
+}
+
+.md-table {
+  border-collapse: collapse;
+  margin: 16px 0;
+  width: 100%;
+  font-size: 13px;
+}
+
+.md-table th,
+.md-table td {
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.md-table th {
+  background: #f6f8fa;
+  font-weight: 700;
+}
+
+.md-table tr:nth-child(even) td {
+  background: #fafbfc;
+}
+
+/* MathJax: let long display equations scroll instead of overflowing */
+.note mjx-container[display="true"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
 }
 
 .one {

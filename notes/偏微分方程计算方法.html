@@ -1,0 +1,2102 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>偏微分方程计算方法 · Akuiro</title>
+    <meta name="author" content="Akuiro / Zhenkui Zhou">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" href="../images/favicon/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" type="text/css" href="../stylesheet.css">
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']],
+          processEscapes: true,
+          tags: 'ams'
+        },
+        options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+      };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  </head>
+  <body>
+    <table class="page"><tbody>
+      <tr>
+        <td style="padding:2.5%">
+          <p class="note-nav"><a href="../index.html">← Akuiro</a></p>
+          <article class="note">
+            <h1 class="note-title">偏微分方程计算方法</h1>
+            <p class="note-date">2026-07-22</p>
+            <blockquote>核心主题：有限差分法、基矢展开法（含 DVR）、B-样条、小波分析、有限元法、复杂边界条件处理</blockquote>
+<hr>
+<h2>目录</h2>
+<ol>
+<li><a href="#ch1">第一章：偏微分方程的有限差分法</a></li>
+<li><a href="#ch2">第二章：二维 Poisson 方程 — 五点差分与矩阵形式</a></li>
+<li><a href="#ch3">第三章：边界条件的三类处理</a></li>
+<li><a href="#ch4">第四章：傅里叶微分算符与 FFT</a></li>
+<li><a href="#ch5">第五章：基矢展开法求微分方程</a></li>
+<li><a href="#ch6">第六章：离散变量表示 DVR</a></li>
+<li><a href="#ch7">第七章：B-样条展开法</a></li>
+<li><a href="#ch8">第八章：小波分析与多小波展开</a></li>
+<li><a href="#ch9">第九章：有限元方法 FEM</a></li>
+<li><a href="#ch10">第十章：边界条件进阶 — 多极展开、周期性、Twisted</a></li>
+<li><a href="#ch11">第十一章：Jacobi 松弛迭代法</a></li>
+<li><a href="#summary">总结与对比</a></li>
+</ol>
+<h2>第一章：偏微分方程的有限差分法</h2>
+<h3>💡 物理直觉</h3>
+<p>偏微分方程（PDE）在物理中无处不在——<strong>Poisson 方程</strong>描述静电势、引力势；<strong>Schrödinger 方程</strong>描述量子系统的波函数；<strong>扩散方程</strong>描述热传导和物质输运。它们共同的特点是多变量 (x, y, z) 通过函数耦合在一起。</p>
+<blockquote><strong>说人话</strong>：解一维问题就像走钢丝，解二维三维问题就像走钢丝网——你必须同时照顾好所有方向的&quot;约束力&quot;。</blockquote>
+<h3>从一维到二维的推广</h3>
+<p>一维有限差分中，二阶导数离散化为：</p>
+<p>$$
+u''(x_i) \approx \frac{u_{i+1} - 2u_i + u_{i-1}}{h^2}
+$$</p>
+<p>在二维网格上，点 $(x_i, y_j)$ 的 Laplace 算子 $\nabla^2 = \frac{\partial^2}{\partial x^2} + \frac{\partial^2}{\partial y^2}$ 变成<strong>五点差分</strong>：</p>
+<p>$$
+\nabla^2 u\big|_{i,j} \approx \frac{u_{i+1,j} + u_{i-1,j} + u_{i,j+1} + u_{i,j-1} - 4u_{i,j}}{h^2}
+$$</p>
+<h4>五点查分的具体推导：</h4>
+<p>二维 Laplace 算子是：</p>
+<p>$$
+\nabla^2 u
+=
+\frac{\partial^2 u}{\partial x^2}
++
+\frac{\partial^2 u}{\partial y^2}
+$$ 在均匀网格上：</p>
+<p>$$
+x_i=x_0+ih,\qquad y_j=y_0+jh
+$$ 函数值记为：</p>
+<p>$$
+u_{i,j}=u(x_i,y_j)
+$$ 对 $x$ 方向二阶导：</p>
+<p>$$
+\frac{\partial^2 u}{\partial x^2}\bigg|_{i,j}
+\approx
+\frac{u_{i+1,j}-2u_{i,j}+u_{i-1,j}}{h^2}
+$$ 对 $y$ 方向二阶导：</p>
+<p>$$
+\frac{\partial^2 u}{\partial y^2}\bigg|_{i,j}
+\approx
+\frac{u_{i,j+1}-2u_{i,j}+u_{i,j-1}}{h^2}
+$$ 两者相加：</p>
+<p>$$
+\nabla^2 u\big|_{i,j}
+\approx
+\frac{
+u_{i+1,j}
++u_{i-1,j}
++u_{i,j+1}
++u_{i,j-1}
+-4u_{i,j}
+}{h^2}
+$$ 这就是二维五点差分格式。</p>
+<p>如果 x,y 方向上 网格间距不同</p>
+<p>若：</p>
+<p>$$
+h_x\neq h_y
+$$ 则：</p>
+<p>$$
+\nabla^2 u\big|_{i,j}
+\approx
+\frac{u_{i+1,j}-2u_{i,j}+u_{i-1,j}}{h_x^2}
++
+\frac{u_{i,j+1}-2u_{i,j}+u_{i,j-1}}{h_y^2}
+$$ 整理：</p>
+<p>$$
+\nabla^2 u\big|_{i,j}
+\approx
+\frac{u_{i+1,j}+u_{i-1,j}}{h_x^2}
++
+\frac{u_{i,j+1}+u_{i,j-1}}{h_y^2}
+-
+2\left(
+\frac{1}{h_x^2}
++
+\frac{1}{h_y^2}
+\right)u_{i,j}
+$$ 如果 $h_x=h_y=h$，就退化为五点公式。</p>
+<h3>📐 直观理解：一个点要&quot;看&quot;四个邻居</h3>
+<p>五点公式：</p>
+<p>$$
+\nabla^{2}u_{i,j} \approx \frac{u_{i+1,j}+u_{i-1,j}+u_{i,j+1}+u_{i,j-1}-4u_{i,j}}{h^{2}}
+$$ 可以写成：</p>
+<p>$$
+\nabla^{2}u_{i,j} \approx \frac{4}{h^2}\left(\frac{u_{i+1,j}+u_{i-1,j}+u_{i,j+1}+u_{i,j-1}}{4} -u_{i,j}\right)
+$$</p>
+<p>也就是说 约等于 邻居的平均值 减去 自身 就是 $\nabla^{2}$</p>
+<p>所以：</p>
+<ul>
+<li>如果 $u_{i,j}$ 大于周围平均值，Laplace 值偏负；</li>
+<li>如果 $u_{i,j}$ 小于周围平均值，Laplace 值偏正；</li>
+<li>如果 $u_{i,j}$ 等于周围平均值，Laplace 值为零。</li>
+</ul>
+<pre><code>            u[i, j+1]
+               ↑
+u[i-1, j] ← u[i, j] → u[i+1, j]
+               ↓
+            u[i, j-1]</code></pre>
+<blockquote><strong>说人话</strong>：在格点上算二阶导数，就是拿上下左右四个邻居的值减去4倍自己，再除以格距平方。这本质上是在问：&quot;我和邻居们的平均值差了多少？&quot;</blockquote>
+<p>以此 ， 可以解释 调和函数 可以导出的平均值性质：</p>
+<p>$$
+\nabla^{2}u = 0  \Longrightarrow  u_{i,j} = \frac{u_{i+1,j}+u_{i-1,j}+u_{i,j+1}+u_{i,j-1}}{4}
+$$ 即，没有源的时候，一个点的值等于周围“邻居” 的平均值</p>
+<p>同理 可以推广到 三维时候的 七点差分（就是看一共六个“邻居”）</p>
+<hr>
+<h2>第二章：二维 Poisson 方程 — 五点差分与矩阵形式</h2>
+<h3>💡 物理直觉</h3>
+<p>泊松方程 $\nabla^2 u = -f$ 的物理意义：给定一个&quot;源&quot;分布 $f$（如电荷密度），求它产生的&quot;势&quot; $u$（如电势）。五点差分把这个连续问题转化为一个巨大的线性方程组。</p>
+<p>$$
+4u_{i,j} -u_{i+1,j} -u_{i-1,j} -u_{i,j+1} -u_{i,j-1} = h^2 f_{i,j}
+$$</p>
+<h3>重要提醒：两种矩阵约定</h3>
+<p>这里有一个非常容易混乱的地方。</p>
+<h4>约定 A：矩阵里面保留 $1/h^2$</h4>
+<p>写成：</p>
+<p>$$
+A=\frac{1}{h^2}A_0
+$$ 其中 $A_0$ 的主对角是 $4$，邻居位置是 $-1$。</p>
+<p>此时右端应该是：</p>
+<p>$$
+b=f+\frac{\text{边界贡献}}{h^2}
+$$</p>
+<hr>
+<h4>约定 B：整体乘以 $h^2$</h4>
+<p>写成： $$
+A_0\mathbf u=\mathbf b
+$$ 此时右端是： $$
+b=h^2f+\text{边界贡献}
+$$ 你给的伪代码：</p>
+<pre><code>Python
+
+b[k] = f[i][j] * h**2
+
+b[k] += boundary_value</code></pre>
+<p>对应的是第二种约定，也就是矩阵中不带 $1/h^2$。</p>
+<p>如果矩阵写成： $$
+A=\frac1{h^2}A_0
+$$ 那么 RHS 就不该写 $f h^2$，而应该写 $f$。</p>
+<h3>具体数值例子：3×3 内部格点</h3>
+<p>设求解区域内部有 3×3 = 9 个未知格点，边界值已知（Dirichlet 条件）。</p>
+<p><strong>步骤 1：把 2D 格点&quot;拉直&quot;成一维向量</strong></p>
+<p>设未知函数在格点 $(i,j)$ 处的值为 $u_{i,j}$。按行（或列）排列：</p>
+<p>$$
+\mathbf{u} = [u_{1,1}, u_{1,2}, u_{1,3}, u_{2,1}, u_{2,2}, u_{2,3}, u_{3,1}, u_{3,2}, u_{3,3}]^T
+$$</p>
+<p>这就是<strong>投影转为一维</strong>的核心思想——多维问题的本质就是把高维指标压扁成一个长向量。</p>
+<p><strong>步骤 2：构建微分算符矩阵 A</strong></p>
+<p>$A = \frac{1}{h^2} A_{0}$</p>
+<p>对内部 3×3 网格，离散 Laplace 算子对应的矩阵为 9×9 分块三对角形式。取 $h=1$ 简化说明：</p>
+<p>$$
+A = \frac{1}{h^2}
+\begin{bmatrix}
+4 & -1 & 0 & -1 & 0 & 0 & 0 & 0 & 0 \\
+-1 & 4 & -1 & 0 & -1 & 0 & 0 & 0 & 0 \\
+0 & -1 & 4 & 0 & 0 & -1 & 0 & 0 & 0 \\
+-1 & 0 & 0 & 4 & -1 & 0 & -1 & 0 & 0 \\
+0 & -1 & 0 & -1 & 4 & -1 & 0 & -1 & 0 \\
+0 & 0 & -1 & 0 & -1 & 4 & 0 & 0 & -1 \\
+0 & 0 & 0 & -1 & 0 & 0 & 4 & -1 & 0 \\
+0 & 0 & 0 & 0 & -1 & 0 & -1 & 4 & -1 \\
+0 & 0 & 0 & 0 & 0 & -1 & 0 & -1 & 4
+\end{bmatrix}
+$$</p>
+<blockquote><strong>说人话</strong>：矩阵每行最多 5 个非零元——主对角线是 4（自己），周围的 -1 对应上下左右四个邻居。矩阵是<strong>稀疏的、对称的、正定的</strong>。这种结构在工程中叫&quot;块三对角&quot;（block tridiagonal）。</blockquote>
+<p><strong>步骤 3：边界条件进入右端向量</strong></p>
+<p>以左下角附近的内部点 $u_{1,1}$ 为例。</p>
+<p>离散方程：</p>
+<p>$$
+4u_{1,1}
+-u_{2,1}
+-u_{0,1}
+-u_{1,2}
+-u_{1,0}
+=
+h^2f_{1,1}
+$$ 其中：</p>
+<ul>
+<li>$u_{2,1}$、$u_{1,2}$ 是内部未知量；</li>
+<li>$u_{0,1}$、$u_{1,0}$ 是边界已知量。</li>
+</ul>
+<p>把边界已知量移到右端：</p>
+<p>$$
+4u_{1,1}
+-u_{2,1}
+-u_{1,2}
+=
+h^2f_{1,1}
++
+u_{0,1}
++
+u_{1,0}
+$$ 所以边界值是以正号加到 RHS 上的。</p>
+<p>一般规律：</p>
+<p>$$
+b_{i,j}
+=
+h^2f_{i,j}
++
+\sum_{\text{邻居为边界}} u_{\text{boundary}}
+$$ 这是在矩阵不带 $1/h^2$ 的约定下。</p>
+<pre><code># 伪代码：构建右端向量并加入边界贡献
+for i in range(1, Nx-1):
+    for j in range(1, Ny-1):
+        k = idx(i, j)  # 2D→1D 映射
+        b[k] = f[i][j] * h**2  # 源项
+        # 边界贡献
+        if i == 1:     b[k] += u[0][j]       # 下边界
+        if i == Nx-2:  b[k] += u[Nx-1][j]    # 上边界
+        if j == 1:     b[k] += u[i][0]       # 左边界
+        if j == Ny-2:  b[k] += u[i][Ny-1]    # 右边界</code></pre>
+<p><strong>步骤 4：求解线性方程组</strong> $$
+A_{0}\mathbf{u} = \mathbf{b}
+$$</p>
+<p>用 SciPy 稀疏求解器一行搞定：</p>
+<pre><code>from scipy.sparse import lil_matrix
+from scipy.sparse.linalg import spsolve
+
+# A 为稀疏矩阵，b 为右端向量
+u_1d = spsolve(A, b)
+u_2d = u_1d.reshape(Nx, Ny)  # 还原为二维</code></pre>
+<h3>用Kronecker积写二维的Laplace矩阵！</h3>
+<p>二维矩阵其实可以用一维矩阵拼出来。</p>
+<p>一维二阶差分矩阵： $$
+T_N=
+\begin{bmatrix}
+2 & -1 & 0 & \cdots & 0\\
+-1 & 2 & -1 & \cdots & 0\\
+0 & -1 & 2 & \cdots & 0\\
+\vdots & \vdots & \vdots & \ddots & -1\\
+0 & 0 & 0 & -1 & 2
+\end{bmatrix}
+$$ 对于二维 Poisson： $$
+-\nabla^2
+=
+-\partial_{xx}
+-\partial_{yy}
+$$ 离散矩阵可以写成： $$
+A=
+\frac1{h^2}
+\left(
+I_y\otimes T_x
++
+T_y\otimes I_x
+\right)
+$$ 如果 $N_x=N_y=3$，就会得到你写的 $9\times 9$ 块三对角矩阵。</p>
+<p>这说明二维 Laplace 算子本质上是两个方向一维 Laplace 算子的张量和。</p>
+<h3>矩阵性质</h3>
+<p>对于 Dirichlet 边界条件，二维 Poisson 矩阵满足：</p>
+<p><strong>稀疏</strong>：每行最多 5 个非零元；</p>
+<p><strong>对称</strong>：</p>
+<p>$$
+A^T=A
+$$ <strong>正定</strong>：</p>
+<p>$$
+\mathbf u^T A\mathbf u>0
+$$ 只要 $\mathbf u\neq 0$。</p>
+<p>正定性来自物理能量：</p>
+<p>$$
+\int |\nabla u|^2\,d\Omega>0
+$$ 离散后对应：</p>
+<p>$$
+\mathbf u^TA\mathbf u
+\sim
+\sum_{\langle i,j\rangle}(u_i-u_j)^2
+$$ 所以这个矩阵适合用共轭梯度法 CG</p>
+<h3>📊 矩阵规模与计算代价</h3>
+<table class="md-table"><thead><tr><th>网格大小</th><th>内部格点数</th><th>矩阵维度</th><th>非零元素</th></tr></thead><tbody><tr><td>5×5</td><td>3×3=9</td><td>9×9</td><td>~45</td></tr><tr><td>10×10</td><td>8×8=64</td><td>64×64</td><td>~320</td></tr><tr><td>100×100</td><td>98×98=9604</td><td>9604×9604</td><td>~48000</td></tr><tr><td>N×N</td><td>(N-2)²</td><td>(N-2)²×(N-2)²</td><td>≈5(N-2)²</td></tr></tbody></table>
+<blockquote><strong>⚠️ 关键认识</strong>：矩阵维数 = (格点数)²，二维问题的计算量随格点数增长极快。这就是为什么三维问题经常让人绝望——矩阵维度 = (格点数)³ 的平方！</blockquote>
+<h3>💡 算法思路：高阶差分与精度权衡</h3>
+<p>可以采用第三章学过的<strong>拉格朗日插值法</strong>构造更高阶的差分公式（如5点、7点格式）。但在边界处只能退化为低阶格式，否则会用到界外的不存在的格点。</p>
+<p><strong>核心矛盾</strong>：格点间距越小精度越高，但二维三维很难取很小的间距（存储和计算都爆炸）。因此需要考虑：</p>
+<ul>
+<li>✨ <strong>对称性降维</strong>：利用宇称对称性可以减少一半计算空间</li>
+<li>✨ <strong>好量子数</strong>：量子力学中利用好量子数进行变量分离（如角动量投影）</li>
+<li>⚠️ 一旦对称性破缺，计算量增加几个量级</li>
+</ul>
+<hr>
+<h2>第三章：边界条件的三类处理</h2>
+<p>PDE 的定解问题 = <strong>控制方程</strong> + <strong>边界条件</strong>。</p>
+<p>边界条件就是&quot;物理系统在边界上被怎么约束&quot;。不给定边界条件，解就不唯一——就像做菜不告诉我锅的温度，我咋知道该用多大火力？</p>
+<p>否则解通常不唯一</p>
+<h3>三类边界条件对比</h3>
+<table class="md-table"><thead><tr><th>类型</th><th>数学形式</th><th>物理含义</th><th>数值处理</th><th>典型例子</th></tr></thead><tbody><tr><td><strong>Dirichlet</strong></td><td>$u\big|_{\partial\Omega} = g$</td><td>边界值固定已知</td><td>直接代入已知值，减少未知数 转移到RHS</td><td>导体表面电势固定</td></tr><tr><td><strong>Neumann</strong></td><td>$\frac{\partial u}{\partial n}\big|_{\partial\Omega} = g$</td><td>边界法向导数固定</td><td>需对边界点额外离散，增加方程</td><td>绝热边界、对称边界、给定通量边界</td></tr><tr><td><strong>Mixed/Robin</strong></td><td>$\alpha u + \beta \frac{\partial u}{\partial n} = g$</td><td>线性组合指定</td><td>同时处理</td><td>对流换热边界</td></tr></tbody></table>
+<h3>Neumann 边界条件的数值处理</h3>
+<p>Neumann 条件不像 Dirichlet 那样可以直接&quot;削掉&quot;边界格点——因为边界值本身是未知的。要引入额外的差分方程。</p>
+<p>例如引入<strong>虚格点</strong>（ghost point）：在边界外对称放一个辅助点，利用中心差分 $\frac{u_{i+1} - u_{i-1}}{2h} = g$ 来消去虚点。</p>
+<h4>一维 Neumann 的 虚格点 推导</h4>
+<p>考虑一维 Poisson：</p>
+<p>$$
+-u''(x)=f(x),\qquad x\in[0,L]
+$$ 左边界给 Neumann：</p>
+<p>$$
+u'(0)=g
+$$ 在 $x=0$ 处引入虚点：</p>
+<p>$$
+x_{-1}=-h
+$$ 中心差分近似一阶导数：</p>
+<p>$$
+u'(0)
+\approx
+\frac{u_1-u_{-1}}{2h}
+$$ 令它等于 $g$：</p>
+<p>$$
+\frac{u_1-u_{-1}}{2h}=g
+$$ 解出虚点：</p>
+<p>$$
+u_{-1}=u_1-2hg
+$$ 现在在边界点 $x_0$ 上离散 PDE：</p>
+<p>$$
+-u''(0)=f_0
+$$ 二阶导：</p>
+<p>$$
+u''(0)
+\approx
+\frac{u_1-2u_0+u_{-1}}{h^2}
+$$ 所以：</p>
+<p>$$
+-\frac{u_1-2u_0+u_{-1}}{h^2}=f_0
+$$ 代入：</p>
+<p>$$
+u_{-1}=u_1-2hg
+$$ 得到：</p>
+<p>$$
+-\frac{u_1-2u_0+u_1-2hg}{h^2}=f_0
+$$ 整理：</p>
+<p>$$
+-\frac{2u_1-2u_0-2hg}{h^2}=f_0
+$$ 因此：</p>
+<p>$$
+\frac{2u_0-2u_1}{h^2}
+=
+f_0-\frac{2g}{h}
+$$ 这就是 Neumann 边界点对应的离散方程。</p>
+<p>如果 $g=0$，即对称边界：</p>
+<p>$$
+u'(0)=0
+$$ 则：</p>
+<p>$$
+u_{-1}=u_1
+$$ 这意味着边界外的虚点是边界内点的镜像。</p>
+<h4>二维 Neumann 边界</h4>
+<p>假设左边界 $x=0$ 给：</p>
+<p>$$
+\frac{\partial u}{\partial x}(0,y_j)=g_j
+$$ 引入虚点 $u_{-1,j}$，有：</p>
+<p>$$
+\frac{u_{1,j}-u_{-1,j}}{2h}=g_j
+$$ 所以：</p>
+<p>$$
+u_{-1,j}=u_{1,j}-2hg_j
+$$ 如果边界点本身也是未知量 $u_{0,j}$，则在边界处的 Laplace 方程：</p>
+<p>$$
+-\nabla^2u=f
+$$ 写成：</p>
+<p>$$
+-\frac{
+u_{1,j}+u_{-1,j}+u_{0,j+1}+u_{0,j-1}-4u_{0,j}
+}{h^2}
+=
+f_{0,j}
+$$ 代入虚点：</p>
+<p>$$
+u_{-1,j}=u_{1,j}-2hg_j
+$$ 得到：</p>
+<p>$$
+-\frac{
+2u_{1,j}
+-2hg_j
++u_{0,j+1}
++u_{0,j-1}
+-4u_{0,j}
+}{h^2}
+=
+f_{0,j}
+$$ 这就把虚点消掉了。</p>
+<hr>
+<h3>Robin 边界条件</h3>
+<p>Robin 条件：</p>
+<p>$$
+\alpha u+\beta\frac{\partial u}{\partial n}=g
+$$ 例如一维左边界：</p>
+<p>$$
+\alpha u_0+\beta u'(0)=g
+$$ 用中心差分：</p>
+<p>$$
+u'(0)\approx \frac{u_1-u_{-1}}{2h}
+$$ 代入：</p>
+<p>$$
+\alpha u_0
++
+\beta\frac{u_1-u_{-1}}{2h}
+=
+g
+$$ 解出虚点：</p>
+<p>$$
+u_{-1}
+=
+u_1-\frac{2h}{\beta}(g-\alpha u_0)
+$$ 即：</p>
+<p>$$
+u_{-1}
+=
+u_1-\frac{2hg}{\beta}
++
+\frac{2h\alpha}{\beta}u_0
+$$ 然后再代回 PDE 的差分方程。</p>
+<h3>纯Neumann问题的特殊性</h3>
+<p>如果整个边界都是 Neumann 条件，例如：</p>
+<p>$$
+-\nabla^2u=f
+\\
+\space
+\\
+\frac{\partial u}{\partial n} = g , on \space \partial \Omega
+$$ 则解只确定到一个常数。</p>
+<p>因为如果 $u$ 是解，那么：</p>
+<p>$$
+u+C
+$$ 也是解。</p>
+<p>所以矩阵会有零特征值，不是严格正定。</p>
+<p>还需要兼容条件。</p>
+<p>由散度定理：</p>
+<p>$$
+\int_\Omega -\nabla^2u\,d\Omega
+=
+-\int_{\partial\Omega}
+\frac{\partial u}{\partial n}
+\,dS
+$$ 因为：</p>
+<p>$$
+-\nabla^2u=f
+$$ 所以：</p>
+<p>$$
+\int_\Omega f\,d\Omega
+=
+-\int_{\partial\Omega}g\,dS
+$$ <strong>如果这个条件不满足，纯 Neumann 问题无解</strong>。</p>
+<p>如果满足，解存在但差一个常数，需要额外固定： $$
+\int_\Omega u\,d\Omega=0
+$$ 或指定某一点： $$
+u(x_0)=0
+$$</p>
+<blockquote><strong>说人话</strong>：Dirichlet 就是&quot;墙的温度给我定死了&quot;，Neumann 就是&quot;墙的热流给我定死了&quot;。前者简单（少解几个方程），后者麻烦（多解几个方程）。</blockquote>
+<hr>
+<h2>第四章：傅里叶微分算符与 FFT</h2>
+<h3>💡 物理直觉</h3>
+<p>有限差分 就是 在实空间中用邻居差值近似导数</p>
+<p>Fourier方法 是在 频率/动量空间 利用：</p>
+<p>$$
+\frac{d}{dx} e^{ikx} = ik e^{ikx}
+$$ 在格点空间做微分的&quot;近邻相减&quot;，在<strong>动量空间</strong>就是简单的乘法！</p>
+<p>这是所有谱方法的精髓 （微分变成乘法）</p>
+<h3>离散 Fourier变换 DFT</h3>
+<p>在周期区间：</p>
+<p>$$
+x_j=jh,\qquad j=0,1,\dots,N-1
+$$ 离散 Fourier 展开：</p>
+<p>$$
+u_j
+=
+\sum_{m=0}^{N-1}
+\tilde u_m e^{ik_m x_j}
+$$ 其中波数：</p>
+<p>$$
+k_m=\frac{2\pi}{L}m
+$$ 但是 DFT 的频率顺序通常是：</p>
+<p>$$
+m=0,1,\dots,\frac N2,-\frac N2+1,\dots,-1
+$$ 在 NumPy 中：</p>
+<pre><code>Python
+k = 2*np.pi*np.fft.fftfreq(N, d=h)</code></pre>
+<p>会自动给出正确频率。</p>
+<p>在动量空间，一阶微分就是乘 $ik$，二阶微分就是乘 $-k^2$：</p>
+<p>$$
+\partial_x \leftrightarrow ik, \qquad \partial_x^2 \leftrightarrow -k^2
+$$</p>
+<p>再<strong>逆变换回来，就得到了格点上的微分近似</strong>。</p>
+<h3>Fourier 微分矩阵</h3>
+<p>令 DFT 矩阵为 $F$，则：</p>
+<p>$$
+\tilde{\mathbf u}=F\mathbf u
+$$ 反变换：</p>
+<p>$$
+\mathbf u=F^{-1}\tilde{\mathbf u}
+$$ 一阶导数在 Fourier 空间是乘 $ik$，所以：</p>
+<p>$$
+\widetilde{\mathbf u'}
+=
+\operatorname{diag}(ik_m)\tilde{\mathbf u}
+$$ 回到实空间：</p>
+<p>$$
+\mathbf u'
+=
+F^{-1}\operatorname{diag}(ik_m)F\mathbf u
+$$ 因此一阶微分矩阵是：</p>
+<p>$$
+D^{(1)}
+=
+F^{-1}\operatorname{diag}(ik_m)F
+$$ 二阶微分矩阵：</p>
+<p>$$
+D^{(2)}
+=
+F^{-1}\operatorname{diag}(-k_m^2)F
+$$ 因为：</p>
+<p>$$
+(ik_m)^2=-k_m^2
+$$ 所以：</p>
+<p>$$
+D^{(2)}
+=
+D^{(1)}D^{(1)}
+$$ 注意：这个关系在 Fourier 谱方法里严格成立。</p>
+<p>但<strong>普通有限差分中，中心差分的一阶矩阵平方，不一定等于常用的二阶差分矩阵</strong>。</p>
+<h3>一阶和二阶微分算符矩阵的关系</h3>
+<p>Fourier 方法的优雅之处：<strong>一阶矩阵 $D^{(1)}$ 和二阶矩阵 $D^{(2)}$ 是完全一致的</strong>——$D^{(2)} = D^{(1)}D^{(1)}$，即微分和积分互逆。</p>
+<h3>FFT 的计算效率</h3>
+<p>上一轮我们推导的傅里叶微分矩阵  $D=F^{-1}diag(ik)F$ ，在数学上完美无瑕，但<strong>如果直接按这个公式去编程，你的电脑会卡死</strong>。这段文字就是在告诉你：<strong>FFT 是专门来拯救这个困局的“救世主”</strong></p>
+<p>FFT发现了 一个极其简单但有效的规律 ： ==偶数项和奇数项可以分开算==</p>
+<ul>
+<li>一个 N<em>N</em> 点的大变换，可以拆成 <strong>两个 N/2点的小变换</strong>（一个只负责偶数位置，一个只负责奇数位置）。</li>
+<li>而这两个 N/2<em>N</em>/2 点的小变换，又可以继续拆成 <strong>四个 N/4 点的更小变换</strong>……</li>
+<li>直到拆成单个点（单个点的傅里叶变换就是它自己）。</li>
+</ul>
+<p><strong>这就是“分治（Divide and Conquer）”</strong>。 通过这种层层拆分，原本需要把每个格点和每个频率都配对的 N2<em>N</em>2 次运算，变成了只需在每一层（共 log⁡Nlog<em>N</em> 层）把结果合并起来（合并时只涉及少量运算）的 Nlog⁡N<em>N</em>log<em>N</em> 次运算。</p>
+<table class="md-table"><thead><tr><th>方法</th><th>时间复杂度</th><th>N=1024 时</th><th>N=10⁶ 时</th></tr></thead><tbody><tr><td>DFT 直接求</td><td>$O(N^2)$</td><td>~10⁶ 次运算</td><td>~10¹² 次运算</td></tr><tr><td>FFT</td><td>$O(N\log N)$</td><td>~10⁴ 次运算</td><td>~2×10⁷ 次运算</td></tr></tbody></table>
+<blockquote><strong>说人话</strong>：FFT 把&quot;每个格点和每个动量分量两两配对&quot;的暴力算法，变成了精巧的分治算法。原来 N² 的事现在 N log N 就办完了——当 N 很大时，这个差距是天壤之别。<br><br>理论上的 Fourier微分矩阵 虽然是稠密的（计算量巨大）但实际我们从来不显式地去构建这个矩阵。我们直接用FFT代替矩阵乘法，把计算复杂度从“平方级”降为“线性对数级”，从而使得谱方法能够处理 百万级网格的工程问题</blockquote>
+<h3>🔬 二维 Fourier 微分</h3>
+<p>二维周期函数：</p>
+<p>$$
+u(x,y)
+=
+\sum_{k_x,k_y}
+\tilde u_{k_x,k_y}
+e^{i(k_xx+k_yy)}
+$$ 则：</p>
+<p>$$
+\nabla^2u
+=
+\frac{\partial^2u}{\partial x^2}
++
+\frac{\partial^2u}{\partial y^2}
+$$ 在 Fourier 空间变成：</p>
+<p>$$
+\widehat{\nabla^2u}
+=
+-(k_x^2+k_y^2)\tilde u
+$$ 所以算法是：</p>
+<ol>
+<li>对 $u$ 做二维 FFT；</li>
+<li>每个 Fourier 分量乘上 $-(k_x^2+k_y^2)$；</li>
+<li>做逆 FFT。</li>
+</ol>
+<p>二维情况使用张量积形式：依次对每行、每列做一维变换。</p>
+<pre><code>import numpy as np
+
+def fourier_laplacian_2d(u, hx, hy=None):
+    &quot;&quot;&quot;
+    用 FFT 计算二维 Laplace 算子。
+    要求周期边界条件。
+    &quot;&quot;&quot;
+    if hy is None:
+        hy = hx
+
+    Nx, Ny = u.shape
+
+    kx = 2*np.pi*np.fft.fftfreq(Nx, d=hx)
+    ky = 2*np.pi*np.fft.fftfreq(Ny, d=hy)
+
+    KX, KY = np.meshgrid(kx, ky, indexing=&#x27;ij&#x27;)
+
+    multiplier = -(KX**2 + KY**2)
+
+    u_hat = np.fft.fft2(u)
+    lap_hat = multiplier * u_hat
+
+    return np.fft.ifft2(lap_hat).real</code></pre>
+<h3>🎯 FFT 的应用拓展</h3>
+<p>Fourier方法 默认周期边界条件！！！</p>
+<p>也就是说：</p>
+<p>$$
+u(0)=u(L)
+$$ 如果函数不周期，强行用 Fourier 会导致边界跳跃，从而产生 Gibbs 现象。</p>
+<p>对于非周期边界，可以用：</p>
+<ul>
+<li>sine transform：适合 Dirichlet；</li>
+<li>cosine transform：适合 Neumann；</li>
+<li>Chebyshev 谱方法：适合有限区间非周期问题。</li>
+</ul>
+<p>具体应用：</p>
+<ul>
+<li><strong>图像处理</strong>：二维 FFT 是 JPEG 压缩、卷积神经网络的基础</li>
+<li><strong>信号处理</strong>：去噪（低通滤波）、边缘检测（高通滤波）</li>
+<li><strong>零填充（zero-padding）</strong>：平滑处理</li>
+<li><strong>共振态展宽</strong>：$A(t) = A e^{i\omega t} e^{-\Gamma t/2}$ → 傅里叶变换得到 Lorentz 线形，展宽 $\Gamma$ 对应寿命 $\tau = 1/\Gamma$</li>
+</ul>
+<h3>用 FFT 解 Poisson 方程</h3>
+<p>考虑周期边界下：</p>
+<p>$$
+-\nabla^2u=f
+$$ Fourier 空间：</p>
+<p>$$
+-\widehat{\nabla^2u}
+=
+(k_x^2+k_y^2)\hat u
+=
+\hat f
+$$ 所以：</p>
+<p>$$
+\hat u
+=
+\frac{\hat f}{k_x^2+k_y^2}
+$$ 但当：</p>
+<p>$$
+k_x=k_y=0
+$$ 分母为零。</p>
+<p>这是因为周期 Poisson 方程的解只确定到一个常数。</p>
+<p>必须要求：</p>
+<p>$$
+\int f\,d\Omega=0
+$$ 也就是：</p>
+<p>$$
+\hat f_{0,0}=0
+$$ 然后可以人为设定：</p>
+<p>$$
+\hat u_{0,0}=0
+$$ 即选择零平均势。</p>
+<hr>
+<h3>FFT 与共振展宽</h3>
+<p>如果一个信号：</p>
+<p>$$
+A(t)=A_0e^{-i\omega_0t}e^{-\Gamma t/2}
+$$ 它的 Fourier 变换近似为：</p>
+<p>$$
+\tilde A(\omega)
+=
+\int_0^\infty
+A_0e^{-i\omega_0t}e^{-\Gamma t/2}e^{i\omega t}\,dt
+$$ 整理指数：</p>
+<p>$$
+\tilde A(\omega)
+=
+A_0
+\int_0^\infty
+e^{-\left(\frac{\Gamma}{2}+i(\omega_0-\omega)\right)t}
+\,dt
+$$ 积分：</p>
+<p>$$
+\tilde A(\omega)
+=
+\frac{A_0}
+{
+\frac{\Gamma}{2}+i(\omega_0-\omega)
+}
+$$ 谱强度：</p>
+<p>$$
+|\tilde A(\omega)|^2
+=
+\frac{|A_0|^2}
+{
+(\omega-\omega_0)^2+\left(\frac{\Gamma}{2}\right)^2
+}
+$$ 这就是 Lorentz 线形。</p>
+<p>$$
+\Gamma
+$$ 越大，谱线越宽，寿命越短：</p>
+<p>$$
+\tau\sim \frac1{\Gamma}
+$$ 若带 $\hbar$，则：</p>
+<p>$$
+\tau\sim \frac{\hbar}{\Gamma}
+$$</p>
+<hr>
+<h2>第五章：基矢展开法求微分方程</h2>
+<h3>💡 物理直觉</h3>
+<p>量子力学课上学过：波函数可以在任意一组完备基下展开。计算物理中我们就用这个思路——不是直接在格点上离散，而是把解写成一组合适基函数的线性组合，然后把 PDE 转化为矩阵本征值问题。</p>
+<h3>基本公式推导</h3>
+<p>将波函数展开为基矢 $\phi_j$ 的线性组合：</p>
+<p>$$
+\psi_i = \sum_j c_{ij} \phi_j
+$$</p>
+<p>代入本征方程 $H\psi = E\psi$：</p>
+<p>$$
+\sum_m H \phi_m \, c_{im} = E \sum_j c_{ij} \phi_j
+$$</p>
+<p>左乘 $\phi_k^*$ 并积分（投影）：</p>
+<p>$$
+\sum_m \langle \phi_k | H | \phi_m \rangle \, c_{im} = E \, c_{ik}
+$$</p>
+<p>写成矩阵形式：</p>
+<p>$$
+\begin{bmatrix}
+H_{11} & H_{12} & \cdots & H_{1N} \\
+H_{21} & H_{22} & \cdots & H_{2N} \\
+\vdots & \vdots & \ddots & \vdots \\
+H_{N1} & H_{N2} & \cdots & H_{NN}
+\end{bmatrix}
+\begin{bmatrix} c_1 \\ c_2 \\ \vdots \\ c_N \end{bmatrix}
+= E
+\begin{bmatrix} c_1 \\ c_2 \\ \vdots \\ c_N \end{bmatrix}
+$$</p>
+<blockquote><strong>说人话</strong>：本来是一个微分方程，经过&quot;选定基函数→展开→投影→积分&quot;这一套，变成了一个矩阵对角化问题。这就是<strong>Ritz 变分法</strong>的数值实现。</blockquote>
+<p>对于基态能量，有限基截断给出的能量通常是上界：</p>
+<p>$$
+E_0^{(N)}\ge E_0
+$$ 随着基函数数目增大：</p>
+<p>$$
+E_0^{(N)}\to E_0
+$$</p>
+<h3>实际应用：三维谐振子基矢</h3>
+<h4><strong>3D 笛卡尔谐振子基</strong></h4>
+<p>三维笛卡尔谐振子基：</p>
+<p>$$
+\phi_{n_xn_yn_z}(x,y,z)
+=
+\phi_{n_x}(x)
+\phi_{n_y}(y)
+\phi_{n_z}(z)
+$$ 其中一维谐振子基函数：</p>
+<p>$$
+\phi_n(x)
+=
+N_n
+H_n(\xi)e^{-\xi^2/2}
+$$ $H_n$ 是 Hermite 多项式，$b$ 是振子长度参数。</p>
+<p>总壳层量子数：</p>
+<p>$$
+N=n_x+n_y+n_z
+$$ 如果截断到：</p>
+<p>$$
+N\le N_{\max}
+$$ 则基函数数目是：</p>
+<p>$$
+\sum_{N=0}^{N_{\max}}
+\frac{(N+1)(N+2)}{2}
+=
+\frac{(N_{\max}+1)(N_{\max}+2)(N_{\max}+3)}{6}
+$$ 这个数目随着 $N_{\max}$ 迅速增长。</p>
+<h4><strong>轴对称体系</strong>（柱坐标）</h4>
+<p>对于轴对称系统，通常用柱坐标：</p>
+<p>$$
+(\rho,\varphi,z)
+$$ 基函数可以分离为：</p>
+<p>$$
+\Phi(\rho,\varphi,z,\sigma)
+=
+R_{n_r}^{|m|}(\rho)
+e^{im\varphi}
+Z_{n_z}(z)
+\chi_\sigma
+$$ 其中：</p>
+<ul>
+<li>$Z_{n_z}(z)$：Hermite 基；</li>
+<li>$R_{n_r}^{|m|}(\rho)$：associated Laguerre 基；</li>
+<li>$e^{im\varphi}$：角向部分；</li>
+<li>$\chi_\sigma$：自旋部分。</li>
+</ul>
+<p>常用截断：</p>
+<p>$$
+N=2n_r+n_z+|m|
+$$ 保留：</p>
+<p>$$
+N\le N_{\max}
+$$</p>
+<h3>好量子数为什么能降维？</h3>
+<p>如果 Hamiltonian 和某个算符对易： $$
+[H,\hat Q]=0
+$$ 那么 $\hat Q$ 的本征值就是好量子数。</p>
+<p>例如轴对称情况下，角动量 $z$ 分量 $m$ 可能守恒。</p>
+<p>于是不同 $m$ 的态不会耦合。</p>
+<p>Hamiltonian 矩阵可以分块： $$
+H=
+\begin{bmatrix}
+H_{m=0} & 0 & 0\\
+0 & H_{m=1} & 0\\
+0 & 0 & H_{m=2}
+\end{bmatrix}
+$$ 原来需要对角化一个巨大矩阵，现在可以分别对角化很多小矩阵。</p>
+<p>这就是利用对称性降维的核心。</p>
+<p>一旦对称性破缺，原本的块之间开始耦合，矩阵规模会暴涨。</p>
+<h3>💡 关键认识</h3>
+<ul>
+<li><strong>基函数自带边界条件</strong>：不像有限差分需要显式处理边界，基函的选择就已隐含了边界行为（如谐振子基在无穷远处指数衰减）</li>
+<li><strong>微分可解析计算</strong>：谐振子基的微分有解析表达式，不需要数值近似</li>
+<li><strong>截断误差</strong>：基函数个数 N 有限，所以是近似方法。N 越大越精确</li>
+<li><strong>适用场景</strong>：形状规则的束缚态问题效果极好；复杂形状或连续谱则不够精确</li>
+</ul>
+<h3>流程对比</h3>
+<p>都是把无限维问题 最后 变成 有限维问题</p>
+<pre><code>有限差分法：  格点离散 → 差分近似微分 → 矩阵方程求解 （在格点上表示函数）
+基矢展开法：  选基函数 → 计算矩阵元 → 矩阵对角化 （用系数表示函数）</code></pre>
+<table class="md-table"><thead><tr><th>对比维度</th><th>基空间（基矢展开）</th><th>格点空间（有限差分）</th></tr></thead><tbody><tr><td>灵活性</td><td>高，可选最优基</td><td>低，受网格限制</td></tr><tr><td>计算效率</td><td>高，矩阵小</td><td>低，矩阵巨大</td></tr><tr><td>精度</td><td>对特定问题优秀</td><td>普适性强</td></tr><tr><td>边界处理</td><td>隐式（基函数自带）</td><td>显式（需额外处理）</td></tr><tr><td>实施难度</td><td>需选择合适的基</td><td>相对简单直接</td></tr></tbody></table>
+<hr>
+<h2>第六章：离散变量表示 DVR</h2>
+<h3>💡 物理直觉</h3>
+<p>DVR（Discrete Variable Representation）是一种<strong>同时兼具基空间和格点空间优点</strong>的表示方法。它让你&quot;吃着碗里的看着锅里的&quot;——基函数保证了完备性，而格点表示让矩阵元计算极其简单。</p>
+<p>==核心：动能像基空间一样可以精确/解析处理，势能像格点空间一样近似对角。==</p>
+<h3>DVR 的核心思想</h3>
+<p>给定一组正交基函数 $\phi_n(x)$ 和高斯积分点（gauge points）$\{x_\alpha\}$：</p>
+<ol>
+<li>用这组基构造<strong>投影算符 P</strong></li>
+<li>在格点 $\{x_\alpha\}$ 上定义 DVR 基函数：$f_\alpha(x)$，满足 $f_\alpha(x_\beta) = \delta_{\alpha\beta}$（在自家格点为 1，别家格点为 0）</li>
+<li>关键性质：</li>
+</ol>
+<p>- <strong>动能矩阵元</strong>：有解析表达式，计算简单    - <strong>势能矩阵元</strong>：对角！$V_{\alpha\beta} \approx V(x_\alpha)\delta_{\alpha\beta}$</p>
+<h4>例子</h4>
+<p>均匀格点上常用 sinc-DVR。</p>
+<p>假设区间长度为 $L$，格点数为 $N$，格距：</p>
+<p>$$
+\Delta x=\frac{L}{N}
+$$ 对于无限 sinc-DVR，常见二阶导数矩阵是：</p>
+<p>$$
+\left(\frac{d^2}{dx^2}\right)_{ij}
+=
+\begin{cases}
+-\dfrac{\pi^2}{3\Delta x^2}, & i=j\\[8pt]
+-\dfrac{2(-1)^{i-j}}{\Delta x^2(i-j)^2}, & i\neq j
+\end{cases}
+$$ 于是动能：</p>
+<p>$$
+T=-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}
+$$ 对应：</p>
+<p>$$
+T_{ij}
+=
+\frac{\hbar^2}{2m}
+\begin{cases}
+\dfrac{\pi^2}{3\Delta x^2}, & i=j\\[8pt]
+\dfrac{2(-1)^{i-j}}{\Delta x^2(i-j)^2}, & i\neq j
+\end{cases}
+$$ 周期 sinc-DVR 或 Fourier-DVR 的公式会略有不同，比如会出现：</p>
+<p>$$
+\sin^2\left(\frac{\pi(i-j)}{N}\right)
+$$ 这正是你代码里的结构。</p>
+<p>需要注意：</p>
+<blockquote>不同文献里 $T$、$-d^2/dx^2$、$-\frac12d^2/dx^2$ 的定义可能不同，所以符号和系数要仔细核对。</blockquote>
+<pre><code># DVR 动能矩阵元的典型计算框架
+# 以 sinc-DVR 为例（均匀格点）
+def dvr_kinetic_1d(N, L):
+    &quot;&quot;&quot;一维 sinc-DVR 动能矩阵，区间 [-L/2, L/2]&quot;&quot;&quot;
+    dx = L / N
+    T = np.zeros((N, N))
+    for i in range(N):
+        for j in range(N):
+            if i == j:
+                T[i, j] = np.pi**2 / (6 * dx**2) * (1 + 2/N**2)
+            else:
+                d = i - j
+                T[i, j] = (-1)**d / (dx**2 * np.sin(np.pi * d / N)**2)
+    return T</code></pre>
+<h3>从 FBR（有限基表示） 到 DVR</h3>
+<p>给定正交基函数：</p>
+<p>$$
+\phi_n(x),\qquad n=0,1,\dots,N-1
+$$ 定义投影算符：</p>
+<p>$$
+P=\sum_{n=0}^{N-1}|\phi_n\rangle\langle \phi_n|
+$$ 这个投影算符的意思是：  我们只在这 $N$ 个基函数张成的有限维空间里面近似真实波函数。</p>
+<hr>
+<h4>选择高斯积分点和权重</h4>
+<p>选一组积分点：</p>
+<p>$$
+x_\alpha,\qquad \alpha=0,1,\dots,N-1
+$$ 以及对应权重：</p>
+<p>$$
+w_\alpha
+$$ 满足高斯积分近似：</p>
+<p>$$
+\int f(x)\,dx
+\approx
+\sum_{\alpha=0}^{N-1} w_\alpha f(x_\alpha)
+$$ 你讲义里写的是 gauge points，更准确地说一般叫：</p>
+<p>$$
+\text{quadrature points}
+$$ 或者：</p>
+<p>$$
+\text{DVR grid points}
+$$ 如果这组点和权重选得好，那么对于基函数乘积：</p>
+<p>$$
+\int \phi_m^*(x)\phi_n(x)\,dx
+$$ 可以用求和精确或高精度表示：</p>
+<p>$$
+\int \phi_m^*(x)\phi_n(x)\,dx
+\approx
+\sum_{\alpha=0}^{N-1}
+w_\alpha \phi_m^*(x_\alpha)\phi_n(x_\alpha)
+=
+\delta_{mn}
+$$</p>
+<h3>DVR 变换矩阵</h3>
+<p>定义矩阵：</p>
+<p>$$
+U_{n\alpha}=\sqrt{w_\alpha}\phi_n(x_\alpha)
+$$ 这里：</p>
+<ul>
+<li>$n$：基函数指标；</li>
+<li>$\alpha$：格点指标。</li>
+</ul>
+<p>因为：</p>
+<p>$$
+\sum_\alpha w_\alpha \phi_m^*(x_\alpha)\phi_n(x_\alpha)
+\approx \delta_{mn}
+$$ 所以：</p>
+<p>$$
+\sum_\alpha
+U_{m\alpha}^*U_{n\alpha}
+=
+\delta_{mn}
+$$ 也就是：</p>
+<p>$$
+UU^\dagger \approx I
+$$ 在理想情况下，$U$ 是酉矩阵或正交矩阵。</p>
+<hr>
+<h3>DVR 基函数的构造</h3>
+<p>DVR 基函数定义为：</p>
+<p>$$
+|\chi_\alpha\rangle
+=
+\sum_{n=0}^{N-1}
+U_{n\alpha}^*
+|\phi_n\rangle
+$$ 如果基函数都是实函数，可以省略复共轭：</p>
+<p>$$
+|\chi_\alpha\rangle
+=
+\sum_{n=0}^{N-1}
+U_{n\alpha}
+|\phi_n\rangle
+$$</p>
+<p>写成坐标形式：</p>
+<p>$$
+\chi_\alpha(x)
+=
+\sum_{n=0}^{N-1}
+\sqrt{w_\alpha}\phi_n(x_\alpha)\phi_n(x)
+$$ 这个 $\chi_\alpha(x)$ 就是 DVR 基函数。</p>
+<hr>
+<h4>DVR 基函数为什么具有“插值性”？</h4>
+<p>我们希望它满足类似：</p>
+<p>$$
+f_\alpha(x_\beta)=\delta_{\alpha\beta}
+$$ 也就是：</p>
+<ul>
+<li>在自己的格点上为 1；</li>
+<li>在别人的格点上为 0。</li>
+</ul>
+<p>来推导。</p>
+<p>在格点 $x_\beta$ 处：</p>
+<p>$$
+\chi_\alpha(x_\beta)
+=
+\sum_n
+\sqrt{w_\alpha}
+\phi_n(x_\alpha)
+\phi_n(x_\beta)
+$$ 利用矩阵 $U$ 的正交性：</p>
+<p>$$
+\sum_n U_{n\alpha}U_{n\beta}
+=
+\delta_{\alpha\beta}
+$$ 代入：</p>
+<p>$$
+U_{n\alpha}
+=
+\sqrt{w_\alpha}\phi_n(x_\alpha)
+$$ 所以：</p>
+<p>$$
+\sum_n
+\sqrt{w_\alpha}\phi_n(x_\alpha)
+\sqrt{w_\beta}\phi_n(x_\beta)
+=
+\delta_{\alpha\beta}
+$$ 两边除以 $\sqrt{w_\beta}$：</p>
+<p>$$
+\sum_n
+\sqrt{w_\alpha}\phi_n(x_\alpha)
+\phi_n(x_\beta)
+=
+\frac{\delta_{\alpha\beta}}{\sqrt{w_\beta}}
+$$ 左边正是 $\chi_\alpha(x_\beta)$。</p>
+<p>因此：</p>
+<p>$$
+\chi_\alpha(x_\beta)
+=
+\frac{\delta_{\alpha\beta}}{\sqrt{w_\beta}}
+$$ 如果重新定义归一化后的 DVR cardinal 函数：</p>
+<p>$$
+f_\alpha(x)=\sqrt{w_\alpha}\chi_\alpha(x)
+$$ 那么：</p>
+<p>$$
+f_\alpha(x_\beta)
+=
+\sqrt{w_\alpha}
+\frac{\delta_{\alpha\beta}}{\sqrt{w_\beta}}
+$$ 当 $\alpha=\beta$ 时：</p>
+<p>$$
+f_\alpha(x_\alpha)=1
+$$ 当 $\alpha\neq\beta$ 时：</p>
+<p>$$
+f_\alpha(x_\beta)=0
+$$ 所以：</p>
+<p>$$
+\boxed{
+f_\alpha(x_\beta)=\delta_{\alpha\beta}
+}
+$$ 这就是 DVR 的核心插值性质。</p>
+<hr>
+<h3>势能矩阵为什么近似对角？</h3>
+<p>考虑势能矩阵：</p>
+<p>$$
+V_{\alpha\beta}^{\text{DVR}}
+=
+\langle \chi_\alpha|V|\chi_\beta\rangle
+$$ 写成积分：</p>
+<p>$$
+V_{\alpha\beta}
+=
+\int \chi_\alpha^*(x)V(x)\chi_\beta(x)\,dx
+$$ 用高斯积分近似：</p>
+<p>$$
+V_{\alpha\beta}
+\approx
+\sum_\gamma
+w_\gamma
+\chi_\alpha^*(x_\gamma)
+V(x_\gamma)
+\chi_\beta(x_\gamma)
+$$ 利用：</p>
+<p>$$
+\chi_\alpha(x_\gamma)
+=
+\frac{\delta_{\alpha\gamma}}{\sqrt{w_\gamma}}
+$$ 以及：</p>
+<p>$$
+\chi_\beta(x_\gamma)
+=
+\frac{\delta_{\beta\gamma}}{\sqrt{w_\gamma}}
+$$ 代入：</p>
+<p>$$
+V_{\alpha\beta}
+\approx
+\sum_\gamma
+w_\gamma
+\left(
+\frac{\delta_{\alpha\gamma}}{\sqrt{w_\gamma}}
+\right)
+V(x_\gamma)
+\left(
+\frac{\delta_{\beta\gamma}}{\sqrt{w_\gamma}}
+\right)
+$$ 整理：</p>
+<p>$$
+V_{\alpha\beta}
+\approx
+\sum_\gamma
+\delta_{\alpha\gamma}\delta_{\beta\gamma}
+V(x_\gamma)
+$$ 只有当：</p>
+<p>$$
+\alpha=\beta=\gamma
+$$ 时有贡献。</p>
+<p>所以：</p>
+<p>$$
+\boxed{
+V_{\alpha\beta}^{\text{DVR}}
+\approx
+V(x_\alpha)\delta_{\alpha\beta}
+}
+$$ 这就是 DVR 最重要的结果。</p>
+<blockquote>势能矩阵不需要做复杂积分，<strong>直接取格点上的势能值</strong>。</blockquote>
+<hr>
+<h3>动能矩阵如何处理？</h3>
+<p>动能算符为：</p>
+<p>$$
+T=-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}
+$$ 在 FBR 中，动能矩阵是：</p>
+<p>$$
+T_{mn}^{\text{FBR}}
+=
+\left\langle \phi_m
+\left|
+-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}
+\right|
+\phi_n
+\right\rangle
+$$ 这通常可以解析算出，或者用高精度积分算出。</p>
+<p>然后用变换矩阵 $U$ 变到 DVR：</p>
+<p>$$
+T^{\text{DVR}}
+=
+U^\dagger T^{\text{FBR}}U
+$$ 即：</p>
+<p>$$
+T_{\alpha\beta}^{\text{DVR}}
+=
+\sum_{m,n}
+U_{m\alpha}^*
+T_{mn}^{\text{FBR}}
+U_{n\beta}
+$$ 所以 Hamiltonian 矩阵变成：</p>
+<p>$$
+H_{\alpha\beta}^{\text{DVR}}
+=
+T_{\alpha\beta}^{\text{DVR}}
++
+V(x_\alpha)\delta_{\alpha\beta}
+$$ 最终求解：</p>
+<p>$$
+\boxed{
+H\mathbf \psi=E\mathbf \psi
+}
+$$</p>
+<h3>DVR 的优势</h3>
+<table class="md-table"><thead><tr><th>特性</th><th>传统基展开</th><th>DVR</th></tr></thead><tbody><tr><td>动能矩阵</td><td>需积分</td><td>解析公式/积分</td></tr><tr><td>势能矩阵</td><td>需积分</td><td>对角（格点上的值）</td></tr><tr><td>收敛性</td><td>一般</td><td>优秀（指数收敛）</td></tr><tr><td>推广到多维</td><td>计算量大</td><td>自然推广</td></tr></tbody></table>
+<h3>📚 代表性工作</h3>
+<p>A. Bulgac and M.M. Forbes, <em>Phys. Rev. C</em> <strong>87</strong>, 051301(R) (2013) — DVR 方法在核物理中的应用典范。</p>
+<h2>第七章：B-样条展开法</h2>
+<h3>💡 物理直觉</h3>
+<p>有限差分用均匀格点，但有些地方（如原子核附近）波函数剧烈变化，有些地方（远离核）变化平缓。为什么不能&quot;哪里变化快就多放格点，哪里变化慢就少放格点&quot;？B-样条就是用来干这个的——它支持<strong>非均匀格点</strong>。</p>
+<h3>B-样条的定义</h3>
+<p>M 阶 B-样条 $B_i^M(x)$ 是在节点序列 $\{x_i, x_{i+1}, \dots, x_{i+M}\}$ 上由递推关系构造的分段多项式。在计算物理中常用的性质：</p>
+<ul>
+<li>紧支撑：只在 M 个区间上非零</li>
+<li>构成完备基</li>
+<li>微分有解析递推公式</li>
+<li>节点可以任意分布（边界加密！）</li>
+</ul>
+<p>$M$：B-样条的阶数；</p>
+<p>多项式次数为：</p>
+<p>$$
+p=M-1
+$$ 例如：</p>
+<ul>
+<li>$M=1$：分段常数；</li>
+<li>$M=2$：分段线性；</li>
+<li>$M=3$：分段二次；</li>
+<li>$M=4$：分段三次 cubic spline。</li>
+</ul>
+<p>一阶 B-样条定义为：</p>
+<p>$$
+B_i^1(x)
+=
+\begin{cases}
+1, & t_i\le x<t_{i+1}\\
+0, & \text{otherwise}
+\end{cases}
+$$ 高阶通过递推构造：</p>
+<p>$$
+B_i^M(x)
+=
+\frac{x-t_i}{t_{i+M-1}-t_i}B_i^{M-1}(x)
++
+\frac{t_{i+M}-x}{t_{i+M}-t_{i+1}}B_{i+1}^{M-1}(x)
+$$ 如果分母为零，则对应项定义为零。</p>
+<p>由递推关系可以看出：</p>
+<p>$$
+B_i^M(x)
+$$ 只在区间：</p>
+<p>$$
+[t_i,t_{i+M}]
+$$ 上非零。</p>
+<p>所以它是紧支撑的。</p>
+<blockquote>紧支撑意味着矩阵是稀疏/带状的。</blockquote>
+<p>如果两个 B-样条支撑区间不重叠，那么：</p>
+<p>$$
+\int B_i^M(x)B_j^M(x)\,dx=0
+$$ 因此重叠矩阵和 Hamiltonian 矩阵都是带状矩阵。</p>
+<h3>用 B-样条求解一维 Schrödinger 方程</h3>
+<p>考虑一维定态 Schrödinger 方程：</p>
+<p>$$
+\left[
+-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}
++
+V(x)
+\right]\psi(x)
+=
+E\psi(x)
+$$ 将波函数展开：</p>
+<p>$$
+\psi(x)
+=
+\sum_j c_j B_j^M(x)
+$$ 代入方程：</p>
+<p>$$
+\left[
+-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}
++
+V(x)
+\right]
+\sum_j c_jB_j^M(x)
+=
+E\sum_j c_jB_j^M(x)
+$$ 利用线性性：</p>
+<p>$$
+\sum_j c_j
+\left[
+-\frac{\hbar^2}{2m}\frac{d^2B_j^M}{dx^2}
++
+V(x)B_j^M(x)
+\right]
+=
+E\sum_jc_jB_j^M(x)
+$$ 左乘测试函数 $B_i^M(x)$，并积分：</p>
+<p>$$
+\int B_i^M(x)
+\sum_j c_j
+\left[
+-\frac{\hbar^2}{2m}\frac{d^2B_j^M}{dx^2}
++
+V(x)B_j^M(x)
+\right]dx
+=
+E
+\int B_i^M(x)
+\sum_jc_jB_j^M(x)dx
+$$ 交换求和与积分：</p>
+<p>$$
+\sum_jc_j
+\int B_i^M
+\left[
+-\frac{\hbar^2}{2m}\frac{d^2B_j^M}{dx^2}
++
+V B_j^M
+\right]dx
+=
+E\sum_jc_j
+\int B_i^M B_j^M dx
+$$ 定义：</p>
+<p>$$
+H_{ij}
+=
+\int B_i^M
+\left[
+-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}
++
+V
+\right]
+B_j^M dx
+$$ 以及重叠矩阵：</p>
+<p>$$
+S_{ij}=
+\int B_i^M(x)B_j^M(x)\,dx
+$$ 于是：</p>
+<p>$$
+\boxed{
+H\mathbf c=ES\mathbf c
+}
+$$ 这是广义本征值问题。</p>
+<h3>动能矩阵的更稳定写法</h3>
+<p>直接算：</p>
+<p>$$
+\int B_i\left(-\frac{d^2B_j}{dx^2}\right)dx
+$$ 有时候不如分部积分稳定。</p>
+<p>考虑动能项：</p>
+<p>$$
+T_{ij}
+=
+-\frac{\hbar^2}{2m}
+\int B_i(x)B_j''(x)\,dx
+$$ 分部积分：</p>
+<p>$$
+\int B_i B_j''dx
+=
+\left[B_iB_j'\right]_{\text{boundary}}
+-
+\int B_i'B_j'dx
+$$ 如果 Dirichlet 边界下基函数或波函数边界为零，边界项消失：</p>
+<p>$$
+\left[B_iB_j'\right]_{\text{boundary}}=0
+$$ 所以：</p>
+<p>$$
+T_{ij}
+=
+\frac{\hbar^2}{2m}
+\int B_i'(x)B_j'(x)\,dx
+$$ 因此：</p>
+<p>$$
+\boxed{
+H_{ij}
+=
+\frac{\hbar^2}{2m}\int B_i'B_j'dx
++
+\int B_i V B_j dx
+}
+$$ 这是实际计算中常用的弱形式。</p>
+<hr>
+<h4>为什么出现重叠矩阵 $S$？</h4>
+<p>普通正交基满足：</p>
+<p>$$
+\int \phi_i\phi_jdx=\delta_{ij}
+$$ 所以本征方程是：</p>
+<p>$$
+H\mathbf c=E\mathbf c
+$$ 但 B-样条通常不是正交基：</p>
+<p>$$
+\int B_iB_jdx\neq \delta_{ij}
+$$ 所以右边出现：</p>
+<p>$$
+S\mathbf c
+$$ 即：</p>
+<p>$$
+H\mathbf c=ES\mathbf c
+$$</p>
+<hr>
+<h4>不建议显式求 $S^{-1}$</h4>
+<p>讲义里写：</p>
+<p>$$
+(S^{-1}H)\mathbf c=E\mathbf c
+$$ 数学上可以这样写，但数值上不推荐显式求逆。</p>
+<p>因为：</p>
+<ol>
+<li>$S^{-1}H$ 可能破坏对称性；</li>
+<li>显式求逆误差大；</li>
+<li>矩阵可能变稠密。</li>
+</ol>
+<p>更好的做法是直接解广义本征值问题：</p>
+<pre><code>Python
+
+from scipy.linalg import eigh
+
+eigvals, eigvecs = eigh(H, S)</code></pre>
+<p>如果一定要转成标准形式，可以做 Cholesky 分解：</p>
+<p>$$
+S=LL^T
+$$ 令：</p>
+<p>$$
+\mathbf c=L^{-T}\mathbf y
+$$ 代入：</p>
+<p>$$
+H L^{-T}\mathbf y
+=
+E S L^{-T}\mathbf y
+$$ 因为：</p>
+<p>$$
+S=L L^T
+$$ 所以：</p>
+<p>$$
+S L^{-T}=L
+$$ 左乘 $L^{-1}$：</p>
+<p>$$
+L^{-1}H L^{-T}\mathbf y=E\mathbf y
+$$ 得到标准对称本征值问题：</p>
+<p>$$
+\boxed{
+\tilde H\mathbf y=E\mathbf y
+}
+$$ 其中：</p>
+<p>$$
+\tilde H=L^{-1}HL^{-T}
+$$</p>
+<h4>转换为标准本征值问题需要求 $B^{-1}$（最直观）</h4>
+<p>$$
+(B^{-1} H) \mathbf{c} = E \mathbf{c}
+$$</p>
+<blockquote><strong>说人话</strong>：B-样条和基矢展开法类似，但基函数不是解析多项式，而是分段拼接的函数段。矩阵方程中多了一个重叠矩阵 B，需要求逆转换。</blockquote>
+<h3>B-样条节点怎么选？</h3>
+<p>常见节点分布：</p>
+<h4>1. 均匀节点</h4>
+<p>$$
+t_i=t_0+ih
+$$ 适合变化均匀的问题。</p>
+<h4>2. 指数加密节点</h4>
+<p>原点附近密，远处稀：</p>
+<p>$$
+t_i=t_{\min}
++
+\frac{e^{ai}-1}{e^{aN}-1}
+(t_{\max}-t_{\min})
+$$ 适合原子、核、束缚态径向问题。</p>
+<h4>3. 分段节点</h4>
+<p>某些区域加密，其他区域粗化。</p>
+<h3>📊 精度与阶数的关系</h3>
+<p>随着 B-样条阶数 M 增大，精度单调改善。但需要注意 <strong>Nyquist 准则</strong>：格点间距不能太大，否则无法分辨波函数的振荡细节。</p>
+<pre><code># 伪代码：B-样条展开法求解一维 Schrödinger 方程
+# 1. 构造节点序列（边界加密）
+knots = make_knots(x_min, x_max, n_basis, order=M)
+# 2. 计算重叠矩阵 B 和 Hamiltonian 矩阵 H
+B = overlap_matrix(knots, M)
+H = hamiltonian_matrix(knots, M, potential_func)
+# 3. 广义本征值问题 → 标准本征值问题
+from scipy.linalg import eigh
+B_inv = np.linalg.inv(B)
+eigvals, eigvecs = eigh(B_inv @ H)</code></pre>
+<h3>🔬 应用实例：形变体系的能级分布</h3>
+<p>在核物理中，B-样条被广泛用于求解轴对称形变势阱中的单粒子能级。利用对称性（角动量投影）可以极大降低矩阵维度。思考：对称性破缺后好量子数如何变化？</p>
+<hr>
+<h2>第八章：小波分析与多小波展开</h2>
+<h3>💡 物理直觉</h3>
+<p>小波分析是一种<strong>多分辨率</strong>表示方法——对于波函数中振荡剧烈的区域，自动用精细的基来描述；对于平缓的区域，用粗糙的基来描述。这就像地图：城市用1:10000，沙漠用1:100000。</p>
+<h3>核心</h3>
+<p>Fourier 基函数是全局的：</p>
+<p>$$
+e^{ikx}
+$$ 它知道频率，但不知道这个频率出现在空间哪里。</p>
+<p>小波基函数是局域的：</p>
+<p>$$
+\psi_{jk}(x)
+=
+2^{j/2}\psi(2^jx-k)
+$$ 它同时有：</p>
+<ul>
+<li>空间位置；</li>
+<li>分辨率尺度。</li>
+</ul>
+<p>其中：</p>
+<ul>
+<li>$j$：尺度，也叫 level；</li>
+<li>$k$：位置；</li>
+<li>$2^j$：缩放因子。</li>
+<li>$2^{j/2}$ 归一化因子</li>
+</ul>
+<h3>小波的两种表示方式</h3>
+<p>小波基具有两个核心操作：</p>
+<ul>
+<li><strong>平移 (Translation)</strong>：移动基函数的中心位置</li>
+<li><strong>伸缩 (Dilation)</strong>：缩放基函数的宽度</li>
+</ul>
+<p>基函数族：$\psi_{jk}(x) = 2^{j/2} \psi(2^j x - k)$</p>
+<p>其中 j 控制分辨率级别（level），k 控制中心位置。</p>
+<h3>多小波展开的核心思想</h3>
+<p>在 n-level 空间上展开波函数：</p>
+<p>$$
+f(x) = \sum_i s_i^n \phi_i^n(x) + \sum_{l=0}^{n-1} \sum_i d_i^l \psi_i^l(x)
+$$</p>
+<p>其中：</p>
+<ul>
+<li>$s_i^n$ 是 n-level 的<strong>平滑系数</strong>（大尺度信息）</li>
+<li>$d_i^l$ 是各 level 的<strong>细节系数</strong>（逐级精细信息）</li>
+<li>系数较小的 $d_i^l$ 可以截断 → <strong>非均匀格点自动加密</strong></li>
+</ul>
+<p>核心：大尺度轮廓 + 各层细节修正</p>
+<h4>多小波是什么？</h4>
+<p>普通小波每个格子上通常一个 scaling function。</p>
+<p>多小波 multiwavelet 在每个区间上使用多个基函数，比如 Legendre 多项式：</p>
+<p>$$
+\phi_0(x),\phi_1(x),\dots,\phi_{p-1}(x)
+$$ 这样每个单元内部不是只用一个常数，而是用高阶多项式。</p>
+<p>优点：</p>
+<ul>
+<li>高阶精度；</li>
+<li>局部支撑；</li>
+<li>自适应；</li>
+<li>正交性好；</li>
+<li>适合并行。</li>
+</ul>
+<h4>系数如何计算？</h4>
+<p>如果基函数正交，则：</p>
+<p>$$
+s_i^0=\langle \phi_i^0|f\rangle
+=
+\int \phi_i^0(x)f(x)\,dx
+$$ 如果某些细节系数很小：</p>
+<p>$$
+|d_i^l|<\epsilon
+$$ 就可以丢掉。</p>
+<p>这就是自适应压缩。</p>
+<h3>🚀 算法创新</h3>
+<p>如果某个区域函数平滑，那么高层小波系数很小。</p>
+<p>因为高层小波描述局部细节，而平滑区域没有多少局部细节。</p>
+<p>所以： $$
+d_i^l\approx 0
+$$ 这些系数可以删掉。</p>
+<p>如果某个区域函数剧烈变化，高层小波系数大，必须保留。</p>
+<p>因此：</p>
+<blockquote>小波展开自动在变化快的地方保留更多自由度，在变化慢的地方保留更少自由度。</blockquote>
+<p>小波方法的核心创新：<strong>将微分方程转化为积分方程，迭代求解</strong>。这是代表性工作 <strong>MADNESS</strong> —— green方法啥的（G.I. Fann 等，ORNL）的核心思想。</p>
+<blockquote><strong>说人话</strong>：小波方法=图像压缩算法的数学推广。JPEG 压缩扔掉高频细节，小波方法也扔掉小的展开系数，结果就是&quot;波函数振荡的地方格点自动加密，平缓的地方格点自动稀疏&quot;——无需人工干预！</blockquote>
+<h3>流程类比</h3>
+<pre><code>┌─────────────────────────────────────────────┐
+│  输入: 微分方程 + 边界条件                     │
+│    ↓                                        │
+│  转换为积分方程                               │
+│    ↓                                        │
+│  多小波基展开 (n-level)                       │
+│    ↓                                        │
+│  截断小系数 → 自适应非均匀格点                  │
+│    ↓                                        │
+│  迭代求解 (如 GMRES)                          │
+│    ↓                                        │
+│  输出: 数值解 + 误差估计                       │
+└─────────────────────────────────────────────┘</code></pre>
+<h3>高性能实现</h3>
+<ul>
+<li><strong>TBB</strong>（Threading Building Blocks）：多线程并行</li>
+<li><strong>Elemental</strong>：全局矩阵的分块分布式计算</li>
+</ul>
+<hr>
+<h2>第九章：有限元方法 FEM</h2>
+<h3>💡 物理直觉</h3>
+<p>有限差分法在处理不规则形状边界时非常痛苦——网格线总不能完美贴合复杂边界。有限元法（FEM）的解决方案：<strong>&quot;把复杂蛋糕切成简单小块，在每一块上做简单近似，最后拼起来。&quot;</strong></p>
+<p>有限差分法的想法是：</p>
+<blockquote>在规则网格上，用上下左右差分近似导数。</blockquote>
+<p>但 FEM 的想法完全不同：</p>
+<blockquote>不一定用规则网格，而是把区域切成很多小块。<br>每个小块里用简单函数近似 $u$。<br>最后把所有小块拼成一个整体。</blockquote>
+<p>FEM 不直接用差分近似二阶导数。</p>
+<p>FEM 会说：</p>
+<blockquote>我不知道真实解 $u(x)$，但我可以用一堆简单函数拼出来。</blockquote>
+<p>令：</p>
+<p>$$
+u_h(x)=\sum_j U_j N_j(x)
+$$ 其中：</p>
+<ul>
+<li>$u_h(x)$：数值近似解；</li>
+<li>$U_j$：第 $j$ 个节点的未知值；</li>
+<li>$N_j(x)$：第 $j$ 个节点对应的基函数，也叫形函数 shape function。</li>
+</ul>
+<p>它满足：</p>
+<p>$$
+N_1(x_1)=1
+$$ 也就是说：</p>
+<blockquote>$N_1$ 在自己的节点为 1，在相邻节点为 0。</blockquote>
+<p>类似地：</p>
+<p>$$
+N_i(x_j)=\delta_{ij}
+$$ 这跟 DVR 里面的 cardinal property 有点像。</p>
+<p>原方程是：</p>
+<p>$$
+-u''=f
+$$ 如果直接代入：</p>
+<p>$$
+u_h=\sum_j U_jN_j
+$$ 会出现二阶导数 $N_j''$。</p>
+<p>但一维线性帽子函数是分段线性的，它的一阶导数是分段常数，二阶导数在节点处会有奇异性。</p>
+<p>所以 FEM 不喜欢直接处理二阶导数。</p>
+<p>于是它使用一个技巧：</p>
+<blockquote>把方程乘以测试函数，再积分，通过分部积分把二阶导数降成一阶导数。</blockquote>
+<p>这就叫 <strong>弱形式 weak form</strong>。</p>
+<p>原方程：</p>
+<p>$$
+-u''(x)=f(x)
+$$ 取一个测试函数 $v(x)$，两边乘以 $v(x)$：</p>
+<p>$$
+-u''(x)v(x)=f(x)v(x)
+$$ 在整个区间积分：</p>
+<p>$$
+\int_0^L -u''(x)v(x)\,dx
+=
+\int_0^L f(x)v(x)\,dx
+$$ 所以：</p>
+<p>$$
+-\int_0^L u''v\,dx
+=
+-\left[u'v\right]_0^L
++
+\int_0^L u'v'\,dx
+$$ 因此：</p>
+<p>$$
+\int_0^L u'v'\,dx
+-
+\left[u'v\right]_0^L
+=
+\int_0^L fv\,dx
+$$ 如果是 Dirichlet 边界：</p>
+<p>$$
+u(0)=0,\qquad u(L)=0
+$$ 测试函数也取边界为零：</p>
+<p>$$
+v(0)=0,\qquad v(L)=0
+$$ 于是边界项：</p>
+<p>$$
+\left[u'v\right]_0^L=0
+$$ 所以得到：</p>
+<p>$$
+\boxed{
+\int_0^L u'(x)v'(x)\,dx
+=
+\int_0^L f(x)v(x)\,dx
+}
+$$ 这就是弱形式。</p>
+<p>只要求一阶导数存在 所以 FEM可以用 分段线形函数</p>
+<blockquote>弱形式把“点点都严格满足微分方程”变成“整体积分意义上满足方程”</blockquote>
+<p>Galerkin 方法：测试函数也选形函数</p>
+<p>近似解：</p>
+<p>$$
+u_h(x)=\sum_j U_jN_j(x)
+$$ 弱形式：</p>
+<p>$$
+\int u_h'v'\,dx=\int fv\,dx
+$$ FEM/Galerkin 方法选择：</p>
+<p>$$
+v=N_i
+$$ 也就是说，用每个形函数当测试函数。</p>
+<p>代入：</p>
+<p>$$
+\int
+\left(
+\sum_j U_jN_j'
+\right)
+N_i'\,dx
+=
+\int fN_i\,dx
+$$ 把求和拿出来：</p>
+<p>$$
+\sum_j U_j
+\int N_j'N_i'\,dx
+=
+\int fN_i\,dx
+$$ 定义矩阵：</p>
+<p>$$
+K_{ij}
+=
+\int N_i'N_j'\,dx
+$$ 定义右端：</p>
+<p>$$
+F_i
+=
+\int fN_i\,dx
+$$ 于是得到：</p>
+<p>$$
+\boxed{
+K\mathbf U=\mathbf F
+}
+$$ 这就是 FEM 的矩阵方程。</p>
+<p>K就是刚度矩阵 对于局部 就是 局部的刚度矩阵</p>
+<p><em>组装就是：每个小单元算出一个局部矩阵，然后按节点编号加到全局矩阵的对应位置。</em></p>
+<p>二维就用更高级的三角形</p>
+<h3>FEM 的基本步骤</h3>
+<ol>
+<li><strong>剖分区域</strong>：将求解域分割成大量小单元（二维用三角形，三维用四面体）</li>
+<li><strong>选择插值函数</strong>：在每个单元内用多项式插值近似场量</li>
+<li><strong>弱形式</strong>：将 PDE 乘以检验函数并分部积分，降低微分阶数</li>
+<li><strong>组装与求解</strong>：叠加所有单元的贡献，得到线性方程组</li>
+</ol>
+<h4>例子</h4>
+<p>考虑：</p>
+<p>$$
+-\nabla^2\phi=f
+$$ 区域：</p>
+<p>$$
+\Omega
+$$ 边界：</p>
+<p>$$
+\partial\Omega
+$$ 假设 Dirichlet 边界：</p>
+<p>$$
+\phi=g
+\quad \text{on }\partial\Omega
+$$ 选一个测试函数 $v$，满足在 Dirichlet 边界上：</p>
+<p>$$
+v=0
+$$ 将 PDE 乘以 $v$，积分：</p>
+<p>$$
+\int_\Omega
+(-\nabla^2\phi)v\,d\Omega
+=
+\int_\Omega fv\,d\Omega
+$$ 对左边分部积分。</p>
+<p>利用恒等式：</p>
+<p>$$
+\nabla\cdot(v\nabla\phi)
+=
+\nabla v\cdot\nabla\phi
++
+v\nabla^2\phi
+$$ 所以：</p>
+<p>$$
+v\nabla^2\phi
+=
+\nabla\cdot(v\nabla\phi)
+-
+\nabla v\cdot\nabla\phi
+$$ 因此：</p>
+<p>$$
+-\int_\Omega v\nabla^2\phi\,d\Omega
+=
+-\int_\Omega
+\nabla\cdot(v\nabla\phi)d\Omega
++
+\int_\Omega
+\nabla v\cdot\nabla\phi\,d\Omega
+$$ 用散度定理：</p>
+<p>$$
+\int_\Omega\nabla\cdot(v\nabla\phi)d\Omega
+=
+\int_{\partial\Omega}v\frac{\partial\phi}{\partial n}dS
+$$ 所以：</p>
+<p>$$
+-\int_\Omega v\nabla^2\phi\,d\Omega
+=
+\int_\Omega\nabla v\cdot\nabla\phi\,d\Omega
+-
+\int_{\partial\Omega}
+v\frac{\partial\phi}{\partial n}dS
+$$ 对于 Dirichlet 边界，测试函数 $v=0$，边界项消失。</p>
+<p>于是弱形式为：</p>
+<p>$$
+\boxed{
+\int_\Omega\nabla v\cdot\nabla\phi\,d\Omega
+=
+\int_\Omega fv\,d\Omega
+}
+$$ 此为 FEM的基础 降低微分阶数 —— 因为有限元形函数通常是分片多项式，只要求一阶导存在即可！</p>
+<h3>Delaunay 三角剖分</h3>
+<p>有限元法中网格质量直接影响精度。<strong>Delaunay 三角剖分</strong>是最常用的剖分策略：</p>
+<ul>
+<li>✅ 最大化所有三角形的最小角（避免&quot;银针三角形&quot;）</li>
+<li>✅ 所有三角形的并集 = 点集的凸包</li>
+<li>✅ 最近邻点必然由一条边相连</li>
+</ul>
+<h3>Poisson 方程 Dirichlet 问题的 FEM 推导</h3>
+<p>在三角形单元内，场量 $\phi$ 用三个顶点值插值：</p>
+<p>$$
+\phi(x,y) = N_a(x,y)\,\phi_a + N_b(x,y)\,\phi_b + N_c(x,y)\,\phi_c
+$$</p>
+<p>其中 $N_a, N_b, N_c$ 是形函数（shape functions）。</p>
+<p>通过<strong>变分法</strong>最小化能量泛函，得到<strong>局部刚度矩阵</strong>：</p>
+<p>$$
+k_{ab} = \int_\Delta \nabla N_a \cdot \nabla N_b \, dA
+$$</p>
+<p>组装所有单元的局部刚度矩阵得到全局方程：</p>
+<p>$$
+K\phi = r
+$$</p>
+<p>其中 $K$ 是对称矩阵，$r$ 是右端向量。</p>
+<h3>每个单元的局部刚度矩阵（具体形式）</h3>
+<p>设三角形三个顶点坐标为 $(x_a, y_a), (x_b, y_b), (x_c, y_c)$：</p>
+<pre><code>def local_stiffness(verts):
+    &quot;&quot;&quot;计算单个三角形单元的局部刚度矩阵&quot;&quot;&quot;
+    xa, ya = verts[0]
+    xb, yb = verts[1]
+    xc, yc = verts[2]
+    # 面积的两倍
+    J = (xb - xa)*(yc - ya) - (xc - xa)*(yb - ya)
+    # 形函数梯度分量
+    bx = (yb - yc) / J  # ∂Na/∂x
+    cx = (xc - xb) / J  # ∂Na/∂y → 对应 Na
+    # ... 轮换得到其他顶点的分量
+    # 局部刚度矩阵 3×3
+    k = np.zeros((3, 3))
+    k[0, 0] = (bx*bx + cx*cx) * J / 2  # 依此类推
+    return k</code></pre>
+<h3>回顾展开推导</h3>
+<h4>三角形线性单元</h4>
+<p>设一个三角形单元 $\Delta$ 有三个顶点：</p>
+<p>$$
+a,b,c
+$$ 坐标分别为：</p>
+<p>$$
+(x_a,y_a),\quad (x_b,y_b),\quad (x_c,y_c)
+$$ 在这个三角形内部，用线性插值：</p>
+<p>$$
+\phi(x,y)
+=
+N_a(x,y)\phi_a
++
+N_b(x,y)\phi_b
++
+N_c(x,y)\phi_c
+$$ 其中 $N_a,N_b,N_c$ 是形函数。</p>
+<p>它们满足：</p>
+<p>$$
+N_a(a)=1,\quad N_a(b)=0,\quad N_a(c)=0
+$$ 类似地：</p>
+<p>$$
+N_b(b)=1,\quad N_c(c)=1
+$$ 并且：</p>
+<p>$$
+N_a+N_b+N_c=1
+$$</p>
+<hr>
+<h4>线性三角形形函数具体形式</h4>
+<p>形函数可以写成：</p>
+<p>$$
+N_i(x,y)
+=
+\frac{a_i+b_ix+c_iy}{2A}
+$$ 其中 $A$ 是三角形面积。</p>
+<p>对顶点 $a$：</p>
+<p>$$
+a_a=x_by_c-x_cy_b
+$$ 对顶点 $b$：</p>
+<p>$$
+a_b=x_cy_a-x_ay_c
+$$ 对顶点 $c$：</p>
+<p>$$
+a_c=x_ay_b-x_by_a
+$$ 面积满足：</p>
+<p>$$
+2A
+=
+\begin{vmatrix}
+1&x_a&y_a\\
+1&x_b&y_b\\
+1&x_c&y_c
+\end{vmatrix}
+$$ 也就是：</p>
+<p>$$
+2A
+=
+(x_b-x_a)(y_c-y_a)
+-
+(x_c-x_a)(y_b-y_a)
+$$ 通常取绝对值保证面积为正。</p>
+<hr>
+<h4>形函数梯度</h4>
+<p>因为 $N_i$ 是线性的，所以梯度是常数：</p>
+<p>$$
+\nabla N_i
+=
+\left(
+\frac{\partial N_i}{\partial x},
+\frac{\partial N_i}{\partial y}
+\right)
+=
+\left(
+\frac{b_i}{2A},
+\frac{c_i}{2A}
+\right)
+$$</p>
+<hr>
+<h4>局部刚度矩阵推导</h4>
+<p>弱形式对应的局部刚度矩阵为：</p>
+<p>$$
+k_{ij}^{(e)}
+=
+\int_{\Delta_e}
+\nabla N_i\cdot\nabla N_j\,dA
+$$ 由于 $\nabla N_i$ 和 $\nabla N_j$ 在三角形内是常数：</p>
+<p>$$
+k_{ij}^{(e)}
+=
+\left(
+\nabla N_i\cdot\nabla N_j
+\right)
+\int_{\Delta_e}dA
+$$ 所以：</p>
+<p>$$
+\boxed{
+k_{ij}^{(e)}
+=
+\frac{b_ib_j+c_ic_j}{4A}
+}
+$$ 这就是线性三角形单元的局部刚度矩阵。</p>
+<hr>
+<h4>局部载荷向量</h4>
+<p>右端：</p>
+<p>$$
+r_i^{(e)}
+=
+\int_{\Delta_e} f N_i\,dA
+$$ 如果 $f$ 在单元内近似为常数，可以取三角形重心处值：</p>
+<p>$$
+f_e=f(x_{\text{centroid}},y_{\text{centroid}})
+$$ 则：</p>
+<p>$$
+r_i^{(e)}
+\approx
+f_e\int_{\Delta_e}N_i\,dA
+$$ 线性三角形中：</p>
+<p>$$
+\int_{\Delta_e}N_i\,dA=\frac{A}{3}
+$$ 所以：</p>
+<p>$$
+\boxed{
+r_i^{(e)}
+\approx
+\frac{A}{3}f_e
+}
+$$</p>
+<hr>
+<h4>组装全局矩阵</h4>
+<p>每个单元有一个 $3\times 3$ 局部刚度矩阵：</p>
+<p>$$
+k^{(e)}
+$$ 假设该单元三个局部节点对应全局编号：</p>
+<p>$$
+I_a,I_b,I_c
+$$ 那么把局部矩阵加到全局矩阵：</p>
+<p>$$
+K_{I_p I_q}
+\mathrel{+}=
+k_{pq}^{(e)}
+$$ 右端同理：</p>
+<p>$$
+r_{I_p}\mathrel{+}=r_p^{(e)}
+$$ 最后得到：</p>
+<p>$$
+\boxed{
+K\boldsymbol\phi=\mathbf r
+}
+$$</p>
+<h4>Dirichlet 边界怎么处理？</h4>
+<p>如果某个边界点已知：</p>
+<p>$$
+\phi_i=g_i
+$$ 常见处理方式：</p>
+<ol>
+<li>把该自由度从未知量中删除；</li>
+<li>或者修改矩阵第 $i$ 行：</li>
+</ol>
+<p>$$
+K_{ii}=1,\quad K_{ij}=0\ (j\neq i)
+$$ 右端设为：</p>
+<p>$$
+r_i=g_i
+$$ 为了保持对称性，通常还要同时修改列。</p>
+<hr>
+<h4>Neumann 边界在 FEM 中很自然</h4>
+<p>如果边界给：</p>
+<p>$$
+\frac{\partial\phi}{\partial n}=q
+$$ 弱形式中边界项不会消失：</p>
+<p>$$
+-\int_{\partial\Omega}
+v\frac{\partial\phi}{\partial n}dS
+$$ 根据方程符号约定，它会进入右端。</p>
+<p>所以 FEM 里 Neumann 条件是自然边界条件。</p>
+<hr>
+<h4>FEM 本征值问题中的质量矩阵</h4>
+<p>如果求 Schrödinger 方程：</p>
+<p>$$
+H\psi=E\psi
+$$ FEM 展开：</p>
+<p>$$
+\psi=\sum_i c_iN_i
+$$ 投影后得到：</p>
+<p>$$
+H\mathbf c=E M\mathbf c
+$$ 这里 $M$ 是质量矩阵：</p>
+<p>$$
+M_{ij}
+=
+\int N_iN_j\,d\Omega
+$$ 对线性三角形，局部质量矩阵为：</p>
+<p>$$
+M^{(e)}
+=
+\frac{A}{12}
+\begin{pmatrix}
+2&1&1\\
+1&2&1\\
+1&1&2
+\end{pmatrix}
+$$ 这和 B-样条里的重叠矩阵 $S$ 是同一个角色。</p>
+<h3>FEM vs 有限差分法</h3>
+<table class="md-table"><thead><tr><th>维度</th><th>有限差分法</th><th>有限元法 FEM</th></tr></thead><tbody><tr><td>网格</td><td>规则矩形网格</td><td>任意三角形/四面体</td></tr><tr><td>边界拟合</td><td>困难</td><td>自然</td></tr><tr><td>数学基础</td><td>Taylor 展开</td><td>变分法 / 弱形式</td></tr><tr><td>精度控制</td><td>加密网格</td><td>加密网格+提高插值阶数</td></tr><tr><td>编程复杂度</td><td>简单</td><td>复杂</td></tr><tr><td>典型应用</td><td>学术计算</td><td>工程仿真（ANSYS, COMSOL）</td></tr></tbody></table>
+<hr>
+<h2>第十章：边界条件进阶 — 多极展开、周期性、Twisted</h2>
+<h3>💡 物理直觉</h3>
+<p>前面讨论的是&quot;给定边界值&quot;的简单情况。实际科研中，边界条件本身就是个难题。比如 Coulomb 势在无穷远处衰减极慢（~1/r），怎么截断？</p>
+<h3>1. Coulomb 势边界条件 — 多极展开法</h3>
+<p>对于长程 Coulomb 势，在边界外面还有贡献。处理方法：</p>
+<p><strong>步骤</strong>：将边界上的源 $\rho_b$ 分离出来：</p>
+<p>$$
+\nabla^2\phi = -4\pi\rho
+$$</p>
+<p>在边界上的贡献用<strong>多极展开</strong>（Spherical Harmonics $Y_{\ell m}$）解析计算：</p>
+<p>$$
+\phi_{\text{boundary}} = \sum_{\ell,m} \frac{Q_{\ell m}}{r^{\ell+1}} Y_{\ell m}(\theta, \phi)
+$$</p>
+<p>其中 $Q_{\ell m} = \int r^\ell Y_{\ell m}^*(\theta, \phi) \,\rho(\mathbf{r})\, d^3r$ 是多极矩。</p>
+<p>然后用有限差分法求解内部：$\nabla^2\phi = -4\pi(\rho - \rho_b)$（减去边界源的贡献）。</p>
+<blockquote><strong>说人话</strong>：把长程部分用球谐函数解析算了，剩下的短程部分用差分法。分而治之！</blockquote>
+<h3>2. 周期性边界条件 PBC</h3>
+<p>傅里叶微分算符天然处理周期性边界：$\phi(x+L) = \phi(x)$。</p>
+<p>在固体物理、晶格 QCD 中，PBC 是标配。</p>
+<p>但有一个问题：<strong>有限盒子的假量子化效应</strong>——本该连续的谱被离散化了。</p>
+<h3>3. Twisted 边界条件 TBC</h3>
+<p>Twisted 边界条件是对 PBC 的推广：</p>
+<p>$$
+\phi(x+L) = e^{i\theta} \phi(x)
+$$</p>
+<ul>
+<li><strong>物理动机</strong>：通过变化 twist 角 $\theta$ 来恢复连续谱</li>
+<li><strong>实现</strong>：修改傅里叶动量 $k = (2\pi n + \theta)/L$</li>
+<li><strong>应用</strong>：晶格 QCD、量子 Monte Carlo、凝聚态物理、中子星壳层 Pasta 结构</li>
+</ul>
+<h3>4. 吸收边界条件 ABC</h3>
+<p>对于散射态/连续谱问题，不让波函数在边界反射回来：</p>
+<pre><code>入射波 → 计算区域 → 透射（吸收）
+           ↛ 反射回来！</code></pre>
+<h3>三种边界条件对比</h3>
+<table class="md-table"><thead><tr><th>类型</th><th>条件</th><th>适用场景</th></tr></thead><tbody><tr><td>PBC</td><td>$\phi(x+L) = \phi(x)$</td><td>晶体、周期结构</td></tr><tr><td>TBC</td><td>$\phi(x+L) = e^{i\theta}\phi(x)$</td><td>有限系统连续谱恢复</td></tr><tr><td>ABC</td><td>吸收出射波</td><td>散射态、连续谱</td></tr></tbody></table>
+<hr>
+<h2>第十一章：Jacobi 松弛迭代法</h2>
+<h3>💡 物理直觉</h3>
+<p>对于 Poisson 方程 $\nabla^2 u = -f$，离散化后得到 $A\mathbf{u} = \mathbf{b}$。直接求逆对大规模矩阵不现实（O(N³)）。Jacobi 迭代的一条思路：&quot;方程两边同时加回主对角项，变成不动点迭代。&quot;</p>
+<p>先乱猜一个解， 然后反复使用“邻居平均值”进行修正，直到整体平均平衡！！！</p>
+<h3>Jacobi 迭代公式推导</h3>
+<p>从五点差分公式出发：</p>
+<p>$$
+\frac{u_{i+1,j} + u_{i-1,j} + u_{i,j+1} + u_{i,j-1} - 4u_{i,j}}{h^2} = -f_{i,j}
+$$</p>
+<p>移项，解出 $u_{i,j}$：</p>
+<p>$$
+u_{i,j}^{\text{(new)}} = \frac{1}{4} \left[ u_{i+1,j}^{\text{(old)}} + u_{i-1,j}^{\text{(old)}} + u_{i,j+1}^{\text{(old)}} + u_{i,j-1}^{\text{(old)}} + h^2 f_{i,j} \right]
+$$</p>
+<blockquote><strong>说人话</strong>：每个格点的新值 = 四个邻居旧值的平均值 + 源项修正。不断重复直到收敛。本质上，这就是让势函数慢慢&quot;松弛&quot;到平衡态！它会慢慢把不平衡的势函数抹平，直到满足平衡条件。</blockquote>
+<h3>数值实现</h3>
+<pre><code>import numpy as np
+
+def jacobi_poisson_2d(u, f, h, tol=1e-6, max_iter=10000):
+    u_old = u.copy()
+    u_new = u.copy()
+
+    for it in range(max_iter):
+        u_old[:, :] = u_new
+
+        u_new[1:-1, 1:-1] = 0.25 * (
+            u_old[2:, 1:-1]
+            + u_old[:-2, 1:-1]
+            + u_old[1:-1, 2:]
+            + u_old[1:-1, :-2]
+            + h**2 * f[1:-1, 1:-1]
+        )
+
+        diff = np.max(np.abs(u_new - u_old))
+
+        if diff &lt; tol:
+            print(&quot;Jacobi 收敛步数:&quot;, it)
+            break
+
+    return u_new</code></pre>
+<h3>加速技巧</h3>
+<ul>
+<li><strong>Gauss-Seidel 迭代</strong>：使用最新值而非旧值（Jacobian→Gauss-Seidel，收敛翻倍）</li>
+<li><strong>超松弛 SOR</strong>：加一个加速因子 $\omega$（$1 < \omega < 2$）</li>
+<li><strong>多重网格法</strong>：粗网格上快速收敛低频分量，细网格上打磨高频分量</li>
+</ul>
+<hr>
+<h2>总结与对比</h2>
+<h3>核心思想归纳</h3>
+<ol>
+<li><strong>多维 PDE 的密钥 → 投影转换为一维</strong>：矩阵形式的本质就是把 2D/3D 格点压扁成一个大向量</li>
+<li><strong>不同算法的精度关键 → 微分算符</strong>：如何逼近导数决定了方法的上限</li>
+<li><strong>两大流派</strong>：基空间（灵活高效）vs 格点空间（精确但计算量大）</li>
+</ol>
+<h3>七种方法终极对比表</h3>
+<table class="md-table"><thead><tr><th>方法</th><th>微分算符</th><th>边界处理</th><th>精度</th><th>计算量</th><th>适用场景</th><th>格点要求</th></tr></thead><tbody><tr><td><strong>有限差分</strong></td><td>局部差分公式</td><td>显式修改</td><td>~O(h²)</td><td>大（稀疏矩阵）</td><td>规则区域</td><td>均匀</td></tr><tr><td><strong>FFT 谱方法</strong></td><td>乘 ik（精确）</td><td>周期边界</td><td>指数收敛</td><td>$O(N\log N)$</td><td>光滑周期问题</td><td>均匀</td></tr><tr><td><strong>基矢展开</strong></td><td>解析积分</td><td>基函数自带</td><td>高（基完备）</td><td>中</td><td>束缚态</td><td>无网格</td></tr><tr><td><strong>DVR</strong></td><td>解析+对角势</td><td>基函数自带</td><td>极高</td><td>中</td><td>本征值问题</td><td>高斯积分点</td></tr><tr><td><strong>B-样条</strong></td><td>解析递推</td><td>需处理边界</td><td>高</td><td>中</td><td>非均匀网格</td><td>非均匀</td></tr><tr><td><strong>小波/多小波</strong></td><td>迭代积分</td><td>自然的</td><td>自适应</td><td>中-高</td><td>多尺度问题</td><td>自适应</td></tr><tr><td><strong>有限元 FEM</strong></td><td>弱形式+变分</td><td>自然拟合任意形状</td><td>高（h&amp;p 自适应）</td><td>大</td><td>工程仿真、复杂边界</td><td>任意三角形</td></tr></tbody></table>
+<h3>📊 方法选择决策树</h3>
+<pre><code>遇到 PDE 问题
+├── 规则区域 + 周期边界 → FFT 谱方法（最快）
+├── 规则区域 + 一般边界 → 有限差分法（最直接）
+├── 束缚态本征值问题
+│   ├── 基函数合适 → 基矢展开法（最高效）
+│   ├── 需要高精度 → DVR（最优收敛）
+│   └── 需要非均匀网格 → B-样条（最灵活）
+├── 多尺度 / 自适应需求 → 多小波分析（最智能）
+├── 不规则复杂边界 → 有限元法（最通用）
+└── 超大规模稀疏 → Jacobi / 多重网格迭代</code></pre>
+<h3>🔗 PDE 方法与物理问题的对应</h3>
+<table class="md-table"><thead><tr><th>物理方程</th><th>类型</th><th>推荐方法</th><th>注意事项</th></tr></thead><tbody><tr><td>Poisson 方程 ∇²u = −ρ</td><td>椭圆型</td><td>五点差分 + 迭代</td><td>稀疏矩阵，迭代收敛快</td></tr><tr><td>Schrödinger 方程 Hψ = Eψ</td><td>本征值型</td><td>DVR / B-样条</td><td>精度要求高，边界条件关键</td></tr><tr><td>扩散方程 ∂u/∂t = D∇²u</td><td>抛物型</td><td>有限差分 + 时间步进</td><td>稳定性条件 Δt ≤ h²/2D</td></tr><tr><td>波动方程 ∂²u/∂t² = c²∇²u</td><td>双曲型</td><td>FFT 谱方法</td><td>无耗散，适合周期性结构</td></tr></tbody></table>
+<h3>💡 课程金句备忘</h3>
+<ul>
+<li>&quot;多维问题的关键是投影转换为一维&quot;</li>
+<li>&quot;不同算法的精度关键是微分算符&quot;</li>
+<li>&quot;基空间灵活高效，格点空间精确但计算量大&quot;</li>
+<li>&quot;利用对称性和好量子数可以降维，打破对称性则计算量增加几个量级&quot;</li>
+<li>&quot;Nyquist 准则：格点间距不能大于最小波长的 1/2，否则信息丢失&quot;</li>
+</ul>
+<hr>
+<p><em>笔记结束 · 2026-06-07</em></p>
+          </article>
+          <p class="note-nav" style="margin-top:32px;"><a href="../index.html">← Back home</a></p>
+        </td>
+      </tr>
+    </tbody></table>
+  </body>
+</html>
